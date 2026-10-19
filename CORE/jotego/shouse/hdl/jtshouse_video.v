@@ -1,0 +1,225 @@
+/* SPDX-FileCopyrightText: 2026 Jose Tejada Gomez
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * Date: 22-9-2023 */
+
+module jtshouse_video(
+    input             rst,
+    input             clk,
+
+    input             pxl_cen,
+    input             pxl2_cen,
+    output     [ 8:0] hdump,
+    output            flip,
+
+    input      [14:0] cpu_addr,
+    input             cpu_rnw,
+    input      [ 7:0] cpu_dout,
+    input             scfg_cs,
+    output     [ 7:0] scfg_dout, // scroll MMR data
+    // Video RAM
+    output     [11:1] oram_addr,
+    input      [15:0] oram_dout,
+    output            oram_we,
+    output     [15:0] oram_din,
+    input             obus_cs,   // obj RAM access by CPU(s)
+    input      [ 7:0] red_dout,   rpal_dout,
+                      green_dout, gpal_dout,
+                      blue_dout,  bpal_dout,
+    output     [12:0] rgb_addr, pal_addr,
+    output            rpal_we, gpal_we, bpal_we,
+    // Tile map readout (BRAM)
+    output     [14:1] tmap_addr,
+    input      [15:0] tmap_data,
+    // Scroll mask readout (SDRAM)
+    output     [16:0] mask_addr,
+    input      [ 7:0] mask_data,
+    // Scroll tile readout (SDRAM)
+    output            scr_cs,
+    input             scr_ok,
+    output     [19:0] scr_addr,
+    input      [ 7:0] scr_data,
+    // Object tile readout (SDRAM)
+    output            obj_cs,
+    input             obj_ok,
+    output     [19:2] obj_addr,
+    input      [31:0] obj_data,
+    // color mixer
+    input             pal_cs,
+    output            raster_irqn,
+    output     [ 7:0] pal_dout,
+
+    output            lvbl, lhbl, hs, vs,
+    output     [ 7:0] red, green, blue,
+    // Dump MMR
+    input      [ 5:0] ioctl_addr,
+    output reg [ 7:0] ioctl_din,
+    // Debug
+    input      [ 3:0] gfx_en,
+    input      [ 7:0] debug_bus,
+    output reg [ 7:0] st_dout
+);
+
+`include "vtimer.vh"
+
+wire [ 8:0] vdump, vrender, vrender1;
+wire [ 7:0] st_scr, st_obj, st_colmix,
+            iodin_obj, iodin_scr, iodin_col;
+wire [10:0] scr_pxl,  obj_pxl;
+wire [ 2:0] scr_prio, obj_prio;
+wire        pre_scrcs, pre_maskcs;
+
+assign scr_cs  = pre_scrcs  & gfx_en[0];
+
+always @(posedge clk) begin
+    case( debug_bus[5:4] )
+        0: st_dout <= st_scr;
+        1: st_dout <= st_obj;
+        2: st_dout <= st_colmix;
+        default: st_dout <= 0;
+    endcase
+    case(ioctl_addr[5])
+        0: ioctl_din = iodin_scr;
+        1: ioctl_din = ioctl_addr[4] ? iodin_col : iodin_obj;
+    endcase
+end
+
+jtshouse_vtimer u_vtimer(
+    .clk        ( clk       ),
+    .pxl_cen    ( pxl_cen   ),
+    .vdump      ( vdump     ),
+    .vrender    ( vrender   ),
+    .vrender1   ( vrender1  ),
+    .hdump      ( hdump     ),
+    .lhbl       ( lhbl      ),
+    .lvbl       ( lvbl      ),
+    .hs         ( hs        ),
+    .vs         ( vs        )
+);
+
+jtshouse_scr #(.VB_END(VB_END)) u_scroll(
+    .rst        ( rst       ),
+    .clk        ( clk       ),
+
+    .hdump      ( hdump     ),
+    .vdump      ( vdump     ),
+    .hs         ( hs        ),
+    .vs         ( vs        ),
+    .flip       ( flip      ),
+
+    .cs         ( scfg_cs   ),
+    .addr       (cpu_addr[4:0]),
+    .rnw        ( cpu_rnw   ),
+    .din        ( cpu_dout  ),
+    .dout       ( scfg_dout ),
+
+    // Tile map readout (BRAM)
+    .tmap_addr  ( tmap_addr ),
+    .tmap_data  ( tmap_data ),
+    // Mask readout (SDRAM)
+    .mask_addr  ( mask_addr ),
+    .mask_data  ( mask_data ),
+    // Tile readout (SDRAM)
+    .scr_cs     ( pre_scrcs ),
+    .scr_ok     ( scr_ok    ),
+    .scr_addr   ( scr_addr  ),
+    .scr_data   ( scr_data  ),
+    // Pixel output
+    .pxl        ( scr_pxl   ),
+    .prio       ( scr_prio  ),
+    // IOCTL dump
+    .ioctl_addr ( ioctl_addr[4:0]),
+    .ioctl_din  ( iodin_scr ),
+    // Debug
+    .gfx_en     ( gfx_en    ),
+    .debug_bus  ( debug_bus ),
+    .st_dout    ( st_scr    )
+);
+
+jtshouse_obj #(.VB_START(VB_START),.VB_END(VB_END)) u_obj(
+    .rst        ( rst       ),
+    .clk        ( clk       ),
+
+    .pxl_cen    ( pxl_cen   ),
+
+    .cpu_dout   ( cpu_dout  ),
+    .cpu_addr   (cpu_addr[11:0]),
+    .cpu_rnw    ( cpu_rnw   ),
+    .cs         ( obus_cs   ),
+
+    .hs         ( hs        ),
+    .lvbl       ( lvbl      ),
+    .flip       ( flip      ),
+    .vrender    ( vdump     ),
+    .hdump      ( hdump     ),
+
+    // Video RAM
+    .oram_addr  ( oram_addr ),
+    .oram_dout  ( oram_dout ),
+    .oram_we    ( oram_we   ),
+    .oram_din   ( oram_din  ),
+
+    // Object tile readout (SDRAM)
+    .rom_cs     ( obj_cs    ),
+    .rom_ok     ( obj_ok    ),
+    .rom_addr   ( obj_addr  ),
+    .rom_data   ( obj_data  ),
+
+    // pixel output
+    .pxl        ( obj_pxl   ),
+    .prio       ( obj_prio  ),
+
+    .debug_bus  ( debug_bus ),
+    .st_dout    ( st_obj    ),
+    // MMR dump
+    .ioctl_addr ( ioctl_addr[3:0]),
+    .ioctl_din  ( iodin_obj )
+);
+
+jtshouse_colmix u_colmix(
+    .rst        ( rst       ),
+    .clk        ( clk       ),
+
+    .pxl_cen    ( pxl_cen   ),
+    .lvbl       ( lvbl      ),
+    .lhbl       ( lhbl      ),
+    .hs         ( hs        ),
+    .hdump      ( hdump     ),
+    .vdump      ( vdump     ),
+    .raster_irqn(raster_irqn),
+
+    // pixel input
+    .obj_pxl    ( obj_pxl   ),
+    .obj_prio   ( obj_prio  ),
+
+    .scr_pxl    ( scr_pxl   ),
+    .scr_prio   ( scr_prio  ),
+
+    .cpu_addr   ( cpu_addr  ),
+    .cs         ( pal_cs    ),
+    .cpu_rnw    ( cpu_rnw   ),
+    .rgb_addr   ( rgb_addr  ),
+    .pal_addr   ( pal_addr  ),
+    .rpal_we    ( rpal_we   ),
+    .gpal_we    ( gpal_we   ),
+    .bpal_we    ( bpal_we   ),
+
+    .cpu_dout   ( cpu_dout  ),
+    .red_dout   ( red_dout  ),
+    .rpal_dout  ( rpal_dout ),
+    .green_dout ( green_dout),
+    .gpal_dout  ( gpal_dout ),
+    .blue_dout  ( blue_dout ),
+    .bpal_dout  ( bpal_dout ),
+    .pal_dout   ( pal_dout  ),
+    .red        ( red       ),
+    .green      ( green     ),
+    .blue       ( blue      ),
+    // Debug
+    .ioctl_addr (ioctl_addr[3:0]),
+    .ioctl_din  ( iodin_col ),
+    .gfx_en     ( gfx_en    ),
+    .debug_bus  ( debug_bus ),
+    .st_dout    ( st_colmix )
+);
+
+endmodule

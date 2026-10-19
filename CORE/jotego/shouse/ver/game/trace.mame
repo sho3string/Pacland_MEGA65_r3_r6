@@ -1,0 +1,10 @@
+trace off
+focus 0
+trace debug.csv,maincpu,noloop,{tracelog "%X,%X,%x,%x,%x,%x,%x,%x,%x,%x,",pc,cc,dp,a,b,x,y,u,s,frame}
+tracelog "PC,cc,dp,a,b,x,y,u,s,frame_cnt\n"
+softreset
+// simulate 5 seconds
+gtime #40000
+traceflush
+snap
+quit
