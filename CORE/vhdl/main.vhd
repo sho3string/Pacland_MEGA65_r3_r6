@@ -1,17 +1,16 @@
 ----------------------------------------------------------------------------------
 -- MiSTer2MEGA65 Framework
---
--- Wrapper for the MiSTer core that runs exclusively in the core's clock domanin
---
--- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
+-- Pac-Land (Jotego JTFRAME) - MEGA65 wrapper
 ----------------------------------------------------------------------------------
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
 use work.video_modes_pkg.all;
+use work.globals.all;
+library xpm;
+use xpm.vcomponents.all;
 
 entity main is
    generic (
@@ -30,9 +29,9 @@ entity main is
       -- Video output
       video_ce_o              : out std_logic;
       video_ce_ovl_o          : out std_logic;
-      video_red_o             : out std_logic_vector(7 downto 0);
-      video_green_o           : out std_logic_vector(7 downto 0);
-      video_blue_o            : out std_logic_vector(7 downto 0);
+      video_red_o             : out std_logic_vector(3 downto 0);
+      video_green_o           : out std_logic_vector(3 downto 0);
+      video_blue_o            : out std_logic_vector(3 downto 0);
       video_vs_o              : out std_logic;
       video_hs_o              : out std_logic;
       video_hblank_o          : out std_logic;
@@ -62,81 +61,795 @@ entity main is
       pot1_x_i                : in  std_logic_vector(7 downto 0);
       pot1_y_i                : in  std_logic_vector(7 downto 0);
       pot2_x_i                : in  std_logic_vector(7 downto 0);
-      pot2_y_i                : in  std_logic_vector(7 downto 0)
+      pot2_y_i                : in  std_logic_vector(7 downto 0);
+
+      -- ROM download bus from QNICE
+      dn_clk_i                : in  std_logic;
+      dn_addr_i               : in  std_logic_vector(24 downto 0);
+      dn_data_i               : in  std_logic_vector(7 downto 0);
+      dn_wr_i                 : in  std_logic;
+
+      debug_led_o             : out std_logic;
+
+      osm_control_i           : in  std_logic_vector(255 downto 0)
    );
 end entity main;
 
 architecture synthesis of main is
 
--- @TODO: Remove these demo core signals
-signal keyboard_n          : std_logic_vector(79 downto 0);
+   -- Packed QNICE ROM image boundaries (byte addresses)
+   constant ROM_MAIN_START     : natural := 16#00000#;
+   constant ROM_MCUSUB_START   : natural := 16#20000#;
+   constant ROM_SCR0_START     : natural := 16#22000#;
+   constant ROM_SCR1_START     : natural := 16#24000#;
+   constant ROM_OBJ_START      : natural := 16#26000#;
+   constant ROM_MCU_START      : natural := 16#36000#;
+   constant ROM_RGPAL_START    : natural := 16#37000#;
+   constant ROM_BPAL_START     : natural := 16#37400#;
+   constant ROM_SCR0PAL_START  : natural := 16#37800#;
+   constant ROM_SCR1PAL_START  : natural := 16#37C00#;
+   constant ROM_OBJPAL_START   : natural := 16#38000#;
+   constant ROM_END            : natural := 16#38400#;
 
-begin
+   signal keyboard_n            : std_logic_vector(79 downto 0);
+   signal reset_async           : std_logic;
+   signal reset_48              : std_logic;
+   signal pxl_cen               : std_logic := '0';
+   signal pxl2_cen              : std_logic := '0';
+   signal cen_c30               : std_logic := '0';
+   signal pxl_div               : unsigned(2 downto 0) := (others => '0');
+   signal c30_acc               : integer range 0 to 124 := 0;
+   signal pl_red                : std_logic_vector(3 downto 0);
+   signal pl_green              : std_logic_vector(3 downto 0);
+   signal pl_blue               : std_logic_vector(3 downto 0);
+   signal pl_lhbl               : std_logic;
+   signal pl_lvbl               : std_logic;
+   signal pl_hs                 : std_logic;
+   signal pl_vs                 : std_logic;
+   signal pl_dip_flip           : std_logic;
+   signal pl_cab                : std_logic_vector(3 downto 0);
+   signal pl_coin               : std_logic_vector(3 downto 0);
+   signal pl_joy1               : std_logic_vector(6 downto 0);
+   signal pl_joy2               : std_logic_vector(6 downto 0);
+   signal pl_dipsw_a            : std_logic_vector(7 downto 0);
+   signal pl_dipsw_b            : std_logic_vector(7 downto 0);
+   signal pl_dipsw              : std_logic_vector(31 downto 0);
+   signal pl_cus_l              : std_logic_vector(15 downto 0);
+   signal pl_cus_r              : std_logic_vector(15 downto 0);
+   signal pl_cpu_dout           : std_logic_vector(7 downto 0);
+   signal pl_bg_we              : std_logic_vector(1 downto 0);
+   signal pl_fg_we              : std_logic_vector(1 downto 0);
+   signal pl_olut_we            : std_logic_vector(1 downto 0);
+   signal pl_vram0_addr         : std_logic_vector(11 downto 0);
+   signal pl_vram1_addr         : std_logic_vector(11 downto 0);
+   signal pl_oram_addr          : std_logic_vector(12 downto 0);
+   signal pl_vram0_dout         : std_logic_vector(15 downto 0);
+   signal pl_vram1_dout         : std_logic_vector(15 downto 0);
+   signal pl_fg_dout            : std_logic_vector(15 downto 0);
+   signal pl_bg_dout            : std_logic_vector(15 downto 0);
+   signal pl_oram_dout          : std_logic_vector(15 downto 0);
+   signal pl_olut_dout          : std_logic_vector(15 downto 0);
+   signal pl_sndram_addr        : std_logic_vector(11 downto 0);
+   signal pl_sndram_din         : std_logic_vector(7 downto 0);
+   signal pl_sndram_dout        : std_logic_vector(7 downto 0);
+   signal pl_sndram_we          : std_logic;
+   signal pl_rgb_addr           : std_logic_vector(9 downto 0);
+   signal pl_scr0pal_addr       : std_logic_vector(9 downto 0);
+   signal pl_scr1pal_addr       : std_logic_vector(9 downto 0);
+   signal pl_objpal_addr        : std_logic_vector(9 downto 0);
+   signal pl_mcu_addr           : std_logic_vector(11 downto 0);
+   signal pl_rgpal_data         : std_logic_vector(7 downto 0);
+   signal pl_bpal_data          : std_logic_vector(7 downto 0);
+   signal pl_scr0pal_data       : std_logic_vector(7 downto 0);
+   signal pl_scr1pal_data       : std_logic_vector(7 downto 0);
+   signal pl_objpal_data        : std_logic_vector(7 downto 0);
+   signal pl_mcu_data           : std_logic_vector(7 downto 0);
+   signal pl_main_cs            : std_logic;
+   signal pl_mcusub_cs          : std_logic;
+   signal pl_scr0_cs            : std_logic;
+   signal pl_scr1_cs            : std_logic;
+   signal pl_obj_cs             : std_logic;
+   signal pl_main_addr          : std_logic_vector(16 downto 0);
+   signal pl_mcusub_addr        : std_logic_vector(12 downto 0);
+   signal pl_scr0_addr          : std_logic_vector(12 downto 0);
+   signal pl_scr1_addr          : std_logic_vector(12 downto 0);
+   signal pl_obj_addr           : std_logic_vector(15 downto 0);
+   signal pl_main_data          : std_logic_vector(7 downto 0);
+   signal pl_mcusub_data        : std_logic_vector(7 downto 0);
+   signal pl_scr0_data          : std_logic_vector(15 downto 0);
+   signal pl_scr1_data          : std_logic_vector(15 downto 0);
+   signal pl_obj_data           : std_logic_vector(31 downto 0);
+   signal pl_main_ok            : std_logic := '0';
+   signal pl_mcusub_ok          : std_logic := '0';
+   signal pl_scr0_ok            : std_logic := '0';
+   signal pl_scr1_ok            : std_logic := '0';
+   signal pl_obj_ok             : std_logic := '0';
+   signal pl_main_addr_d        : std_logic_vector(16 downto 0);
+   signal pl_mcusub_addr_d      : std_logic_vector(12 downto 0);
+   signal pl_scr0_addr_d        : std_logic_vector(12 downto 0);
+   signal pl_scr1_addr_d        : std_logic_vector(12 downto 0);
+   signal pl_obj_addr_d         : std_logic_vector(15 downto 0);
 
-   -- @TODO: Add the actual MiSTer core here
-   -- The demo core's purpose is to show a test image and to make sure, that the MiSTer2MEGA65 framework
-   -- can be synthesized and run stand-alone without an actual MiSTer core being there, yet
-   i_democore : entity work.democore
-      port map (
-         clk_main_i           => clk_main_i,
+   signal dn_we_main_0          : std_logic;
+   signal dn_we_mcusub_0        : std_logic;
+   signal dn_we_scr0_0          : std_logic;
+   signal dn_we_scr0_1          : std_logic;
+   signal dn_we_scr1_0          : std_logic;
+   signal dn_we_scr1_1          : std_logic;
+   signal dn_we_obj_0           : std_logic;
+   signal dn_we_obj_1           : std_logic;
+   signal dn_we_obj_2           : std_logic;
+   signal dn_we_obj_3           : std_logic;
+   signal dn_we_mcu_0           : std_logic;
+   signal dn_we_rgpal_0         : std_logic;
+   signal dn_we_bpal_0          : std_logic;
+   signal dn_we_scr0pal_0       : std_logic;
+   signal dn_we_scr1pal_0       : std_logic;
+   signal dn_we_objpal_0        : std_logic;
 
-         reset_i              => reset_soft_i or reset_hard_i,       -- long and short press of reset button mean the same
-         pause_i              => pause_i,
+    -- Byte-addressed ROM layout; each ROM lane is an 8-bit dual-clock RAM.
+    -- MCU: $36000-$36FFF, palette PROMs: five successive 1KB regions.
+   -- Dual-clock ROM/PROM storage (runtime read, QNICE write)
+   component dualport_2clk_ram
+      generic (
+         FALLING_A  : boolean := false;
+         FALLING_B  : boolean := false;
+         ADDR_WIDTH : integer := 8
+      );
+      port (
+         clock_a   : in  std_logic;
+         clen_a    : in  std_logic := '1';
+         address_a : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+         q_a       : out std_logic_vector(7 downto 0);
+         clock_b   : in  std_logic;
+         clen_b    : in  std_logic := '1';
+         address_b : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+         data_b    : in  std_logic_vector(7 downto 0);
+         wren_b    : in  std_logic
+      );
+   end component;
 
-         ball_col_rgb_i       => x"EE4020",                          -- ball color (RGB): orange
-         paddle_speed_i       => x"1",                               -- paddle speed is about 50 pixels / sec (due to 50 Hz)
+   -- Video read / CPU read-write, with independent byte enables
+   component paclan_dualram16
+      generic (
+         AW : positive := 12
+      );
+      port (
+         clk    : in  std_logic;
+         addr_a : in  std_logic_vector(AW-1 downto 0);
+         dout_a : out std_logic_vector(15 downto 0);
+         addr_b : in  std_logic_vector(AW-1 downto 0);
+         din_b  : in  std_logic_vector(7 downto 0);
+         we_b   : in  std_logic_vector(1 downto 0);
+         dout_b : out std_logic_vector(15 downto 0)
+      );
+   end component;
 
-         keyboard_n_i         => keyboard_n,                         -- move the paddle with the cursor left/right keys...
-         joy_up_n_i           => joy_1_up_n_i,                       -- ... or move the paddle with a joystick in port #1
-         joy_down_n_i         => joy_1_down_n_i,
-         joy_left_n_i         => joy_1_left_n_i,
-         joy_right_n_i        => joy_1_right_n_i,
-         joy_fire_n_i         => joy_1_fire_n_i,
+      begin
 
-         vga_ce_o             => video_ce_o,
-         vga_red_o            => video_red_o,
-         vga_green_o          => video_green_o,
-         vga_blue_o           => video_blue_o,
-         vga_vs_o             => video_vs_o,
-         vga_hs_o             => video_hs_o,
-         vga_hblank_o         => video_hblank_o,
-         vga_vblank_o         => video_vblank_o,
+   ---------------------------------------------------------------------------
+   -- Reset and clock enables
+   ---------------------------------------------------------------------------
+   reset_async <= reset_hard_i or reset_soft_i;
+    i_reset_48 : xpm_cdc_async_rst
+   generic map (
+      RST_ACTIVE_HIGH   => 1,
+      DEST_SYNC_FF      => 6
+   )
+   port map (
+      src_arst          => reset_async,
+      dest_clk          => clk_main_i,
+      dest_arst         => reset_48
+   );
 
-         audio_left_o         => audio_left_o,
-         audio_right_o        => audio_right_o
-      ); -- i_democore
+    -- Pixel 6 MHz, overlay 24 MHz, CUS30 3.072 MHz (48 MHz source).
+    process(clk_main_i)
+   begin
+        if rising_edge(clk_main_i) then
+            pxl_div <= pxl_div + 1;
+            pxl_cen <= '0';
+            pxl2_cen <= '0';
+            cen_c30 <= '0';
+            if pxl_div = 7 then
+                pxl_cen <= '1';
+            end if;
+            if pxl_div(0) = '1' then
+                pxl2_cen <= '1';
+            end if;
+            if c30_acc >= 117 then
+                c30_acc <= c30_acc + 8 - 125;
+                cen_c30 <= '1';
+            else
+                c30_acc <= c30_acc + 8;
+            end if;
+      end if;
+   end process;
 
-   -- On video_ce_o and video_ce_ovl_o: You have an important @TODO when porting a core:
-   -- video_ce_o: You need to make sure that video_ce_o divides clk_main_i such that it transforms clk_main_i
-   --             into the pixelclock of the core (means: the core's native output resolution pre-scandoubler)
-   -- video_ce_ovl_o: Clock enable for the OSM overlay and for sampling the core's (retro) output in a way that
-   --             it is displayed correctly on a "modern" analog input device: Make sure that video_ce_ovl_o
-   --             transforms clk_main_o into the post-scandoubler pixelclock that is valid for the target
-   --             resolution specified by VGA_DX/VGA_DY (globals.vhd)
-   -- video_retro15kHz_o: '1', if the output from the core (post-scandoubler) in the retro 15 kHz analog RGB mode.
-   --             Hint: Scandoubler off does not automatically mean retro 15 kHz on.
-   video_ce_ovl_o <= video_ce_o;
+   ---------------------------------------------------------------------------
+   -- Video and audio outputs
+   ---------------------------------------------------------------------------
+   video_ce_o <= pxl_cen;
+    video_ce_ovl_o <= pxl2_cen; -- 24 MHz overlay enable
+    video_red_o <= pl_red;
+    video_green_o <= pl_green;
+    video_blue_o <= pl_blue;
+    video_hs_o <= pl_hs;
+    video_vs_o <= pl_vs;
+    video_hblank_o <= not pl_lhbl;
+    video_vblank_o <= not pl_lvbl;
+    -- CUS30: sign-extend 13-bit PCM to 16 bits, then scale by eight.
+    audio_left_o  <= shift_left(resize(signed(pl_cus_l(12 downto 0)), 16), 3);
+    audio_right_o <= shift_left(resize(signed(pl_cus_r(12 downto 0)), 16), 3);
+    debug_led_o <= not pl_lvbl;
 
-   -- @TODO: Keyboard mapping and keyboard behavior
-   -- Each core is treating the keyboard in a different way: Some need low-active "matrices", some
-   -- might need small high-active keyboard memories, etc. This is why the MiSTer2MEGA65 framework
-   -- lets you define literally everything and only provides a minimal abstraction layer to the keyboard.
-   -- You need to adjust keyboard.vhd to your needs
+   ---------------------------------------------------------------------------
+   -- DIP switches and cabinet controls
+   ---------------------------------------------------------------------------
+   pl_dipsw_a <= not (osm_control_i(C_MENU_SW1_7) & osm_control_i(C_MENU_SW1_6) &
+                       osm_control_i(C_MENU_SW1_5) & osm_control_i(C_MENU_SW1_4) &
+                       osm_control_i(C_MENU_SW1_3) & osm_control_i(C_MENU_SW1_2) &
+                       osm_control_i(C_MENU_SW1_1) & osm_control_i(C_MENU_SW1_0));
+    pl_dipsw_b <= not (osm_control_i(C_MENU_SW2_7) & osm_control_i(C_MENU_SW2_6) &
+                       osm_control_i(C_MENU_SW2_5) & osm_control_i(C_MENU_SW2_4) &
+                       osm_control_i(C_MENU_SW2_3) & osm_control_i(C_MENU_SW2_2) &
+                       osm_control_i(C_MENU_SW2_1) & osm_control_i(C_MENU_SW2_0));
+    pl_dipsw <= x"0000" & pl_dipsw_b & pl_dipsw_a;
+    -- Cabinet inputs are active low, matching jtpaclan_cab.v.
+    pl_joy1(0) <= joy_1_right_n_i and keyboard_n(2);
+    pl_joy1(1) <= joy_1_left_n_i and keyboard_n(74);
+    pl_joy1(2) <= joy_1_down_n_i and keyboard_n(7);
+    pl_joy1(3) <= joy_1_up_n_i and keyboard_n(73);
+    pl_joy1(4) <= joy_1_fire_n_i and keyboard_n(12);
+    pl_joy1(6 downto 5) <= "11";
+    pl_joy2(0) <= joy_2_right_n_i;
+    pl_joy2(1) <= joy_2_left_n_i;
+    pl_joy2(2) <= joy_2_down_n_i;
+    pl_joy2(3) <= joy_2_up_n_i;
+    pl_joy2(4) <= joy_2_fire_n_i;
+    pl_joy2(6 downto 5) <= "11";
+    pl_cab <= "11" & keyboard_n(59) & keyboard_n(56);
+    pl_coin <= "11" & keyboard_n(16) & keyboard_n(19);
+
+   ---------------------------------------------------------------------------
+   -- Keyboard interface
+   ---------------------------------------------------------------------------
    i_keyboard : entity work.keyboard
-      port map (
-         clk_main_i           => clk_main_i,
+   port map (
+      clk_main_i        => clk_main_i,
+      key_num_i         => kb_key_num_i,
+      key_pressed_n_i   => kb_key_pressed_n_i,
+      example_n_o       => keyboard_n
+   );
 
-         -- Interface to the MEGA65 keyboard
-         key_num_i            => kb_key_num_i,
-         key_pressed_n_i      => kb_key_pressed_n_i,
+   ---------------------------------------------------------------------------
+   -- Pac-Land game core
+   ---------------------------------------------------------------------------
+   i_pacland : entity work.jtpaclan_game
+   port map (
+      rst               => reset_48,
+      clk               => clk_main_i,
+      pxl_cen           => pxl_cen,
+      pxl2_cen          => pxl2_cen,
+      cen_c30           => cen_c30,
+      red               => pl_red,
+      green             => pl_green,
+      blue              => pl_blue,
+      LHBL              => pl_lhbl,
+      LVBL              => pl_lvbl,
+      HS                => pl_hs,
+      VS                => pl_vs,
+      cab_1p            => pl_cab,
+      coin              => pl_coin,
+      joystick1         => pl_joy1,
+      joystick2         => pl_joy2,
+      service           => keyboard_n(32),
+      dip_pause         => pause_i,
+      dip_flip          => pl_dip_flip,
+      dipsw             => pl_dipsw,
+      gfx_en            => "1111",
+      debug_bus         => (others => '0'),
+      debug_view        => open,
+      ioctl_addr        => (others => '0'),
+      ioctl_din         => open,
+      main_cs           => pl_main_cs,
+      main_addr         => pl_main_addr,
+      main_data         => pl_main_data,
+      main_ok           => pl_main_ok,
+      mcusub_cs         => pl_mcusub_cs,
+      mcusub_addr       => pl_mcusub_addr,
+      mcusub_data       => pl_mcusub_data,
+      mcusub_ok         => pl_mcusub_ok,
+      scr0_cs           => pl_scr0_cs,
+      scr0_addr         => pl_scr0_addr,
+      scr0_data         => pl_scr0_data,
+      scr0_ok           => pl_scr0_ok,
+      scr1_cs           => pl_scr1_cs,
+      scr1_addr         => pl_scr1_addr,
+      scr1_data         => pl_scr1_data,
+      scr1_ok           => pl_scr1_ok,
+      obj_cs            => pl_obj_cs,
+      obj_addr          => pl_obj_addr,
+      obj_data          => pl_obj_data,
+      obj_ok            => pl_obj_ok,
+      mcu_addr          => pl_mcu_addr,
+      mcu_data          => pl_mcu_data,
+      rgb_addr          => pl_rgb_addr,
+      rgpal_data        => pl_rgpal_data,
+      bpal_data         => pl_bpal_data,
+      scr0pal_addr      => pl_scr0pal_addr,
+      scr0pal_data      => pl_scr0pal_data,
+      scr1pal_addr      => pl_scr1pal_addr,
+      scr1pal_data      => pl_scr1pal_data,
+      objpal_addr       => pl_objpal_addr,
+      objpal_data       => pl_objpal_data,
+      cpu_dout          => pl_cpu_dout,
+      vram0_addr        => pl_vram0_addr,
+      vram0_dout        => pl_vram0_dout,
+      bg_we             => pl_bg_we,
+      fg_dout           => pl_fg_dout,
+      vram1_addr        => pl_vram1_addr,
+      vram1_dout        => pl_vram1_dout,
+      fg_we             => pl_fg_we,
+      bg_dout           => pl_bg_dout,
+      oram_addr         => pl_oram_addr,
+      oram_dout         => pl_oram_dout,
+      olut_we           => pl_olut_we,
+      olut_dout         => pl_olut_dout,
+      sndram_addr       => pl_sndram_addr,
+      sndram_din        => pl_sndram_din,
+      sndram_dout       => pl_sndram_dout,
+      sndram_we         => pl_sndram_we,
+      cus30_l           => pl_cus_l,
+      cus30_r           => pl_cus_r
+   );
 
-         -- @TODO: Create the kind of keyboard output that your core needs
-         -- "example_n_o" is a low active register and used by the demo core:
-         --    bit 0: Space
-         --    bit 1: Return
-         --    bit 2: Run/Stop
-         example_n_o          => keyboard_n
-      ); -- i_keyboard
+   ---------------------------------------------------------------------------
+   -- ROM read latency handshakes
+   ---------------------------------------------------------------------------
+   -- ROM address stability handshakes
+    process(clk_main_i)
+   begin
+        if rising_edge(clk_main_i) then
+            pl_main_addr_d <= pl_main_addr;
+            pl_mcusub_addr_d <= pl_mcusub_addr;
+            pl_scr0_addr_d <= pl_scr0_addr;
+            pl_scr1_addr_d <= pl_scr1_addr;
+            pl_obj_addr_d <= pl_obj_addr;
+         if pl_main_addr = pl_main_addr_d then
+            pl_main_ok <= '1';
+         else
+            pl_main_ok <= '0';
+         end if;
+         if pl_mcusub_addr = pl_mcusub_addr_d then
+            pl_mcusub_ok <= '1';
+         else
+            pl_mcusub_ok <= '0';
+         end if;
+         if pl_scr0_addr = pl_scr0_addr_d then
+            pl_scr0_ok <= '1';
+         else
+            pl_scr0_ok <= '0';
+         end if;
+         if pl_scr1_addr = pl_scr1_addr_d then
+            pl_scr1_ok <= '1';
+         else
+            pl_scr1_ok <= '0';
+         end if;
+         if pl_obj_addr = pl_obj_addr_d then
+            pl_obj_ok <= '1';
+         else
+            pl_obj_ok <= '0';
+         end if;
+      end if;
+   end process;
 
+   -- CPU port addresses use the low bits of the exported main address.
+   -- Verify this address equivalence against jtpaclan_main before hardware testing.
+
+   ---------------------------------------------------------------------------
+   -- Writable video and object RAM
+   ---------------------------------------------------------------------------
+   i_vram0 : paclan_dualram16
+   generic map (
+      AW                => 12
+   )
+   port map (
+      clk               => clk_main_i,
+      addr_a            => pl_vram0_addr,
+      dout_a            => pl_vram0_dout,
+      addr_b            => '0' & pl_main_addr(11 downto 1),
+      din_b             => pl_cpu_dout,
+      we_b              => pl_bg_we,
+      dout_b            => pl_fg_dout
+   );
+   i_vram1 : paclan_dualram16
+   generic map (
+      AW                => 12
+   )
+   port map (
+      clk               => clk_main_i,
+      addr_a            => pl_vram1_addr,
+      dout_a            => pl_vram1_dout,
+      addr_b            => '0' & pl_main_addr(11 downto 1),
+      din_b             => pl_cpu_dout,
+      we_b              => pl_fg_we,
+      dout_b            => pl_bg_dout
+   );
+   i_oram : paclan_dualram16
+   generic map (
+      AW                => 13
+   )
+   port map (
+      clk               => clk_main_i,
+      addr_a            => pl_oram_addr,
+      dout_a            => pl_oram_dout,
+      addr_b            => '0' & pl_main_addr(12 downto 1),
+      din_b             => pl_cpu_dout,
+      we_b              => pl_olut_we,
+      dout_b            => pl_olut_dout
+   );
+   -- CUS30 sound RAM
+   process(clk_main_i)
+      type ram_t is array (0 to 4095) of std_logic_vector(7 downto 0);
+      variable snd : ram_t;
+   begin
+      if rising_edge(clk_main_i) then
+         if pl_sndram_we = '1' then
+            snd(to_integer(unsigned(pl_sndram_addr))) := pl_sndram_din;
+         end if;
+         pl_sndram_dout <= snd(to_integer(unsigned(pl_sndram_addr)));
+      end if;
+   end process;
+
+   ---------------------------------------------------------------------------
+   -- QNICE ROM download chip selects
+   ---------------------------------------------------------------------------
+   dn_we_main_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_MAIN_START and
+      unsigned(dn_addr_i) <  ROM_MCUSUB_START
+      else '0';
+
+   dn_we_mcusub_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_MCUSUB_START and
+      unsigned(dn_addr_i) <  ROM_SCR0_START
+      else '0';
+
+   dn_we_scr0_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR0_START and
+      unsigned(dn_addr_i) <  ROM_SCR1_START and
+      dn_addr_i(0) = '0'
+      else '0';
+
+   dn_we_scr0_1 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR0_START and
+      unsigned(dn_addr_i) <  ROM_SCR1_START and
+      dn_addr_i(0) = '1'
+      else '0';
+
+   dn_we_scr1_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR1_START and
+      unsigned(dn_addr_i) <  ROM_OBJ_START and
+      dn_addr_i(0) = '0'
+      else '0';
+
+   dn_we_scr1_1 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR1_START and
+      unsigned(dn_addr_i) <  ROM_OBJ_START and
+      dn_addr_i(0) = '1'
+      else '0';
+
+   dn_we_obj_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_OBJ_START and
+      unsigned(dn_addr_i) <  ROM_MCU_START and
+      dn_addr_i(1 downto 0) = "00"
+      else '0';
+
+   dn_we_obj_1 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_OBJ_START and
+      unsigned(dn_addr_i) <  ROM_MCU_START and
+      dn_addr_i(1 downto 0) = "01"
+      else '0';
+
+   dn_we_obj_2 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_OBJ_START and
+      unsigned(dn_addr_i) <  ROM_MCU_START and
+      dn_addr_i(1 downto 0) = "10"
+      else '0';
+
+   dn_we_obj_3 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_OBJ_START and
+      unsigned(dn_addr_i) <  ROM_MCU_START and
+      dn_addr_i(1 downto 0) = "11"
+      else '0';
+
+   dn_we_mcu_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_MCU_START and
+      unsigned(dn_addr_i) <  ROM_RGPAL_START
+      else '0';
+
+   dn_we_rgpal_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_RGPAL_START and
+      unsigned(dn_addr_i) <  ROM_BPAL_START
+      else '0';
+
+   dn_we_bpal_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_BPAL_START and
+      unsigned(dn_addr_i) <  ROM_SCR0PAL_START
+      else '0';
+
+   dn_we_scr0pal_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR0PAL_START and
+      unsigned(dn_addr_i) <  ROM_SCR1PAL_START
+      else '0';
+
+   dn_we_scr1pal_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_SCR1PAL_START and
+      unsigned(dn_addr_i) <  ROM_OBJPAL_START
+      else '0';
+
+   dn_we_objpal_0 <= dn_wr_i when
+      unsigned(dn_addr_i) >= ROM_OBJPAL_START and
+      unsigned(dn_addr_i) <  ROM_END
+      else '0';
+
+   ---------------------------------------------------------------------------
+   -- Main CPU ROM
+   ---------------------------------------------------------------------------
+   i_rom_main_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 17
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_main_addr,
+      q_a               => pl_main_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(16 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_main_0
+   );
+
+   ---------------------------------------------------------------------------
+   -- Sub-MCU ROM
+   ---------------------------------------------------------------------------
+   i_rom_mcusub_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 13
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_mcusub_addr,
+      q_a               => pl_mcusub_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(12 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_mcusub_0
+   );
+
+   ---------------------------------------------------------------------------
+   -- Foreground graphics ROM
+   ---------------------------------------------------------------------------
+   i_rom_scr0_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 12
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr0_addr(12 downto 1),
+      q_a               => pl_scr0_data(7 downto 0),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(12 downto 1),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr0_0
+   );
+
+   i_rom_scr0_1 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 12
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr0_addr(12 downto 1),
+      q_a               => pl_scr0_data(15 downto 8),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(12 downto 1),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr0_1
+   );
+
+   ---------------------------------------------------------------------------
+   -- Background graphics ROM
+   ---------------------------------------------------------------------------
+   i_rom_scr1_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 12
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr1_addr(12 downto 1),
+      q_a               => pl_scr1_data(7 downto 0),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(12 downto 1),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr1_0
+   );
+
+   i_rom_scr1_1 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 12
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr1_addr(12 downto 1),
+      q_a               => pl_scr1_data(15 downto 8),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(12 downto 1),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr1_1
+   );
+
+   ---------------------------------------------------------------------------
+   -- Sprite graphics ROM
+   ---------------------------------------------------------------------------
+   i_rom_obj_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 14
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_obj_addr(15 downto 2),
+      q_a               => pl_obj_data(7 downto 0),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(15 downto 2),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_obj_0
+   );
+
+   i_rom_obj_1 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 14
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_obj_addr(15 downto 2),
+      q_a               => pl_obj_data(15 downto 8),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(15 downto 2),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_obj_1
+   );
+
+   i_rom_obj_2 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 14
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_obj_addr(15 downto 2),
+      q_a               => pl_obj_data(23 downto 16),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(15 downto 2),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_obj_2
+   );
+
+   i_rom_obj_3 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 14
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_obj_addr(15 downto 2),
+      q_a               => pl_obj_data(31 downto 24),
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(15 downto 2),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_obj_3
+   );
+
+   ---------------------------------------------------------------------------
+   -- MCU program ROM
+   ---------------------------------------------------------------------------
+   i_rom_mcu_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 12
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_mcu_addr,
+      q_a               => pl_mcu_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(11 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_mcu_0
+   );
+
+   ---------------------------------------------------------------------------
+   -- Palette PROMs
+   ---------------------------------------------------------------------------
+   i_rom_rgpal_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 10
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_rgb_addr,
+      q_a               => pl_rgpal_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(9 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_rgpal_0
+   );
+
+   i_rom_bpal_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 10
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_rgb_addr,
+      q_a               => pl_bpal_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(9 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_bpal_0
+   );
+
+   i_rom_scr0pal_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 10
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr0pal_addr,
+      q_a               => pl_scr0pal_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(9 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr0pal_0
+   );
+
+   i_rom_scr1pal_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 10
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_scr1pal_addr,
+      q_a               => pl_scr1pal_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(9 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_scr1pal_0
+   );
+
+   i_rom_objpal_0 : dualport_2clk_ram
+   generic map (
+      FALLING_B         => true,
+      ADDR_WIDTH        => 10
+   )
+   port map (
+      clock_a           => clk_main_i,
+      address_a         => pl_objpal_addr,
+      q_a               => pl_objpal_data,
+      clock_b           => dn_clk_i,
+      address_b         => dn_addr_i(9 downto 0),
+      data_b            => dn_data_i,
+      wren_b            => dn_we_objpal_0
+   );
 end architecture synthesis;
-

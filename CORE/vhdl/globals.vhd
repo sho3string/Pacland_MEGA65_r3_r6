@@ -9,12 +9,58 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use IEEE.NUMERIC_STD_UNSIGNED.ALL;
 
 library work;
 use work.qnice_tools.all;
 use work.video_modes_pkg.all;
 
 package globals is
+
+
+--- menu items
+-- HDMI
+constant C_MENU_CRT_EMULATION : natural := 4;
+constant C_MENU_HDMI_16_9_50  : natural := 8;
+constant C_MENU_HDMI_16_9_60  : natural := 9;
+constant C_MENU_HDMI_4_3_50   : natural := 10;
+constant C_MENU_HDMI_5_4_50   : natural := 11;
+constant C_MENU_HDMI_640_60   : natural := 12;
+constant C_MENU_HDMI_720_5994 : natural := 13;
+constant C_MENU_SVGA_800_60   : natural := 14;
+
+-- VGA
+constant C_MENU_VGA_STD       : natural := 20;
+constant C_MENU_VGA_15KHZHSVS : natural := 24;
+constant C_MENU_VGA_15KHZCS   : natural := 25;
+
+-- Audio
+constant C_MENU_IMPROVE_AUDIO : natural := 31;
+
+-- Arcade controls
+constant C_MENU_SECOND_FIRE   : natural := 35;
+constant C_MENU_POTPOL        : natural := 37;  -- P1 polarity
+
+-- DIP SW1
+constant C_MENU_SW1_0         : natural := 43;
+constant C_MENU_SW1_1         : natural := 44;
+constant C_MENU_SW1_2         : natural := 45;
+constant C_MENU_SW1_3         : natural := 46;
+constant C_MENU_SW1_4         : natural := 47;
+constant C_MENU_SW1_5         : natural := 48;
+constant C_MENU_SW1_6         : natural := 49;
+constant C_MENU_SW1_7         : natural := 50;
+
+-- DIP SW2
+constant C_MENU_SW2_0         : natural := 56;
+constant C_MENU_SW2_1         : natural := 57;
+constant C_MENU_SW2_2         : natural := 58;
+constant C_MENU_SW2_3         : natural := 59;
+constant C_MENU_SW2_4         : natural := 60;
+constant C_MENU_SW2_5         : natural := 61;
+constant C_MENU_SW2_6         : natural := 62;
+constant C_MENU_SW2_7         : natural := 63;
+
 
 ----------------------------------------------------------------------------------------------------------
 -- QNICE Firmware
@@ -40,8 +86,8 @@ constant QNICE_FIRMWARE           : string  := QNICE_FIRMWARE_M2M;
 -- then add all the clocks speeds here by adding more constants.
 ----------------------------------------------------------------------------------------------------------
 
--- @TODO: Your core's clock speed
-constant CORE_CLK_SPEED       : natural := 54_000_000;   -- @TODO YOURCORE expects 54 MHz
+-- Pac-Land wrapper main clock
+constant CORE_CLK_SPEED       : natural := 48_000_000;
 
 -- System clock speed (crystal that is driving the FPGA) and QNICE clock speed
 -- !!! Do not touch !!!
@@ -56,8 +102,8 @@ constant QNICE_CLK_SPEED      : natural := 50_000_000;   -- a change here has de
 --    VGA_*   size of the core's target output post scandoubler
 --    If in doubt, use twice the values found in this link:
 --    https://mister-devel.github.io/MkDocs_MiSTer/advanced/nativeres/#arcade-core-default-native-resolutions
-constant VGA_DX               : natural := 720;
-constant VGA_DY               : natural := 576;
+constant VGA_DX               : natural := 512;
+constant VGA_DY               : natural := 448;
 
 --    FONT_*  size of one OSM character
 constant FONT_FILE            : string  := "../font/Anikki-16x16-m2m.rom";
@@ -94,12 +140,9 @@ constant C_DEV_DEMO_NOBUFFER  : std_logic_vector(15 downto 0) := x"AAAA";
 -- Otherwise make sure that you wire C_VD_DEVICE in the qnice_ramrom_devices process and that you
 -- have as many appropriately sized RAM buffers for disk images as you have drives
 type vd_buf_array is array(natural range <>) of std_logic_vector;
-constant C_VDNUM              : natural := 3;                                          -- amount of virtual drives; maximum is 15
-constant C_VD_DEVICE          : std_logic_vector(15 downto 0) := C_DEV_DEMO_VD;        -- device number of vdrives.vhd device
-constant C_VD_BUFFER          : vd_buf_array := (  C_DEV_DEMO_NOBUFFER,
-                                                   C_DEV_DEMO_NOBUFFER,
-                                                   C_DEV_DEMO_NOBUFFER,
-                                                   x"EEEE");                           -- Always finish the array using x"EEEE"
+constant C_VDNUM              : natural := 0;
+constant C_VD_DEVICE          : std_logic_vector(15 downto 0) := x"EEEE";
+constant C_VD_BUFFER          : vd_buf_array := (x"EEEE", x"EEEE");
 
 ----------------------------------------------------------------------------------------------------------
 -- System for handling simulated cartridges and ROM loaders
@@ -151,11 +194,20 @@ constant C_CRTROMS_MAN           : crtrom_buf_array := ( x"EEEE", x"EEEE",
 --               b) Don't forget to zero-terminate each of your substrings of C_CRTROMS_AUTO_NAMES by adding "& ENDSTR;"
 --               c) Don't forget to finish the C_CRTROMS_AUTO array with x"EEEE"
 
--- M2M framework constants
-constant C_CRTROMS_AUTO_NUM      : natural := 0;                                       -- Amount of automatically loadable ROMs and carts, maximum is 16
-constant C_CRTROMS_AUTO_NAMES    : string  := "" & ENDSTR;
-constant C_CRTROMS_AUTO          : crtrom_buf_array := ( x"EEEE", x"EEEE", x"EEEE", x"EEEE",
-                                                         x"EEEE");                     -- Always finish the array using x"EEEE"
+
+-- Automatically loaded Pac-Land ROM (Jotego JTFRAME layout, without 8-byte header)
+-- The QNICE device streams one contiguous file; main.vhd decodes its regions.
+constant C_DEV_PACLAND : std_logic_vector(15 downto 0) := x"0100";
+
+constant PACLAND_ROM       : string := "arcade/pacland/pacland_meg65.rom" & ENDSTR;
+constant PACLAND_ROM_START : std_logic_vector(15 downto 0) := x"0000";
+
+constant C_CRTROMS_AUTO_NUM   : natural := 1;
+constant C_CRTROMS_AUTO_NAMES : string := PACLAND_ROM & ENDSTR;
+constant C_CRTROMS_AUTO      : crtrom_buf_array := (
+    C_CRTROMTYPE_DEVICE, C_DEV_PACLAND, C_CRTROMTYPE_MANDATORY, PACLAND_ROM_START,
+    x"EEEE"
+);
 
 ----------------------------------------------------------------------------------------------------------
 -- Audio filters
@@ -177,4 +229,3 @@ constant audio_att      : std_logic_vector( 4 downto 0) := "00000";
 constant audio_mix      : std_logic_vector( 1 downto 0) := "00"; -- 0 - no mix, 1 - 25%, 2 - 50%, 3 - 100% (mono)
 
 end package globals;
-
