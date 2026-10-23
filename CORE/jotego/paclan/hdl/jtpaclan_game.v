@@ -116,7 +116,15 @@ module jtpaclan_game(
 
     // CUS30 audio
     output      [15:0]  cus30_l,
-    output      [15:0]  cus30_r
+    output      [15:0]  cus30_r,
+    
+    //output      wire mcu_halted
+    output wire       mcu_halted,
+    output wire [4:0] cpu_debug,
+    
+    output [15:0] cpu_addr_debug,
+    output        cpu_rnw_debug
+    
 );
 
 
@@ -132,6 +140,16 @@ reg         lvbl_ps;
 
 assign debug_view   = dbg_mux;
 assign dip_flip     = flip;
+assign cpu_rnw_debug = cpu_rnw;
+
+// CPU/MCU diagnostic signals
+assign cpu_debug = {
+    srst,       // bit 4: MCU reset
+    cen_mcu,    // bit 3: MCU clock enable
+    cen_E,      // bit 2: main CPU clock enable
+    busy[1],    // bit 1: MCU external ROM busy
+    busy[0]     // bit 0: main CPU ROM busy
+};
 
 always @(posedge clk) lvbl_ps <= LVBL & dip_pause;
 
@@ -171,8 +189,10 @@ jtpaclan_main u_main(
     .palbank    ( palbank   ),
     .flip       ( flip      ),
 
-    .cpu_dout   ( cpu_dout  ),
-    .rnw        ( cpu_rnw   ),
+    .cpu_dout       ( cpu_dout       ),
+    .rnw            ( cpu_rnw        ),
+    .cpu_addr_debug ( cpu_addr_debug ),
+        
     // ROM
     .rom_cs     ( main_cs   ),
     .rom_ok     ( main_ok   ),
@@ -240,7 +260,8 @@ jtpaclan_sound u_sound(
 
     .cus30_l    ( cus30_l   ),
     .cus30_r    ( cus30_r   ),
-    .debug_bus  ( debug_bus )
+    .debug_bus  ( debug_bus ),
+    .mcu_halted ( mcu_halted )
 );
 
 jtpaclan_video u_video(

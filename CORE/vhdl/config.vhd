@@ -183,8 +183,8 @@ constant SEL_CFG_FILE      : std_logic_vector(15 downto 0) := x"0101";
 
 -- START YOUR CONFIGURATION BELOW THIS LINE
 
-constant DIR_START         : string := "/arcade/blktiger";
-constant CFG_FILE          : string := "/arcade/blktiger/btcfg";
+constant DIR_START         : string := "/arcade/pacland";
+constant CFG_FILE          : string := "/arcade/pacland/plcfg";
 
 --------------------------------------------------------------------------------------------------------------------
 -- General configuration settings: Reset, Pause, OSD behavior, Ascal, etc. (Selector 0x0110)
@@ -386,28 +386,28 @@ constant OPTM_ITEMS        : string :=
            " DIP SW1\n"                 &  -- 40
            " SW1 Settings\n"            &  -- 41
            "\n"                         &  -- 42
-           " SW1-1 Coin A\n"            &  -- 43
-           " SW1-2 Coin A\n"            &  -- 44
-           " SW1-3 Coin A\n"            &  -- 45
-           " SW1-4 Coin B\n"            &  -- 46
-           " SW1-5 Coin B\n"            &  -- 47
-           " SW1-6 Coin B\n"            &  -- 48
-           " SW1-7 Flip Screen\n"       &  -- 49
-           " SW1-8 Test\n"              &  -- 50
+           " SW1-1 Service\n"           &  -- 43
+           " SW1-2 Lives\n"             &  -- 44
+           " SW1-3 Lives\n"             &  -- 45
+           " SW1-4 Coin A\n"            &  -- 46
+           " SW1-5 Coin A\n"            &  -- 47
+           " SW1-6 Demo Sounds\n"       &  -- 48
+           " SW1-7 Coin B\n"            &  -- 49
+           " SW1-8 Coin B\n"            &  -- 50
            "\n"                         &  -- 51
            " Back to main menu\n"       &  -- 52
 
            " DIP SW2\n"                 &  -- 53
            " SW2 Settings\n"            &  -- 54
            "\n"                         &  -- 55
-           " SW2-1 Lives\n"             &  -- 56
-           " SW2-2 Lives\n"             &  -- 57
-           " SW2-3 Difficulty\n"        &  -- 58
+           " SW2-1 Bonus Life\n"        &  -- 56
+           " SW2-2 Bonus Life\n"        &  -- 57
+           " SW2-3 Bonus Life\n"        &  -- 58
            " SW2-4 Difficulty\n"        &  -- 59
            " SW2-5 Difficulty\n"        &  -- 60
-           " SW2-6 Demo Sounds\n"       &  -- 61
-           " SW2-7 Continue\n"          &  -- 62
-           " SW2-8 Cabinet\n"           &  -- 63
+           " SW2-6 Round select\n"      &  -- 61
+           " SW2-7 Freeze\n"            &  -- 62
+           " SW2-8 Trip Select\n"       &  -- 63
            "\n"                         &  -- 64
            " Back to main menu\n"       &  -- 65
 
@@ -545,10 +545,10 @@ constant OPTM_GROUPS : OPTM_GTYPE := (
                                OPTM_G_SW2_1 + OPTM_G_SINGLESEL,                     -- 57 SW2-2
                                OPTM_G_SW2_2 + OPTM_G_SINGLESEL,                     -- 58 SW2-3
                                OPTM_G_SW2_3 + OPTM_G_SINGLESEL,                     -- 59 SW2-4
-                               OPTM_G_SW2_4 + OPTM_G_SINGLESEL + OPTM_G_STDSEL,     -- 60 SW2-5
+                               OPTM_G_SW2_4 + OPTM_G_SINGLESEL,                     -- 60 SW2-5
                                OPTM_G_SW2_5 + OPTM_G_SINGLESEL,                     -- 61 SW2-6
                                OPTM_G_SW2_6 + OPTM_G_SINGLESEL,                     -- 62 SW2-7
-                               OPTM_G_SW2_7 + OPTM_G_SINGLESEL + OPTM_G_STDSEL,     -- 63 SW2-8
+                               OPTM_G_SW2_7 + OPTM_G_SINGLESEL,                     -- 63 SW2-8
 
                                OPTM_G_LINE,                                         -- 64
                                OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 65 Back to main menu

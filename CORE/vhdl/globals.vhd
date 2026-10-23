@@ -195,19 +195,74 @@ constant C_CRTROMS_MAN           : crtrom_buf_array := ( x"EEEE", x"EEEE",
 --               c) Don't forget to finish the C_CRTROMS_AUTO array with x"EEEE"
 
 
--- Automatically loaded Pac-Land ROM (Jotego JTFRAME layout, without 8-byte header)
--- The QNICE device streams one contiguous file; main.vhd decodes its regions.
-constant C_DEV_PACLAND : std_logic_vector(15 downto 0) := x"0100";
+-- Pac-Land ROMs: one QNICE device per file.
+-- Device IDs 0100-010A; each file starts at local address zero.
+constant C_DEV_PL_MAIN     : std_logic_vector(15 downto 0) := x"0100";
+constant C_DEV_PL_MCUSUB   : std_logic_vector(15 downto 0) := x"0101";
+constant C_DEV_PL_SCR0     : std_logic_vector(15 downto 0) := x"0102";
+constant C_DEV_PL_SCR1     : std_logic_vector(15 downto 0) := x"0103";
+constant C_DEV_PL_OBJ      : std_logic_vector(15 downto 0) := x"0104";
+constant C_DEV_PL_MCU      : std_logic_vector(15 downto 0) := x"0105";
+constant C_DEV_PL_RGPAL    : std_logic_vector(15 downto 0) := x"0106";
+constant C_DEV_PL_BPAL     : std_logic_vector(15 downto 0) := x"0107";
+constant C_DEV_PL_SCR0PAL  : std_logic_vector(15 downto 0) := x"0108";
+constant C_DEV_PL_SCR1PAL  : std_logic_vector(15 downto 0) := x"0109";
+constant C_DEV_PL_OBJPAL   : std_logic_vector(15 downto 0) := x"010A";
 
-constant PACLAND_ROM       : string := "arcade/pacland/pacland_meg65.rom" & ENDSTR;
-constant PACLAND_ROM_START : std_logic_vector(15 downto 0) := x"0000";
+constant PL_MAIN_ROM       : string    := "arcade/pacland/pl_main.rom" & ENDSTR;
+constant PL_MCUSUB_ROM     : string    := "arcade/pacland/pl_mcusub.rom" & ENDSTR;
+constant PL_SCR0_ROM       : string    := "arcade/pacland/pl_scr0.rom" & ENDSTR;
+constant PL_SCR1_ROM       : string    := "arcade/pacland/pl_scr1.rom" & ENDSTR;
+constant PL_OBJ_ROM        : string    := "arcade/pacland/pl_obj.rom" & ENDSTR;
+constant PL_MCU_ROM        : string    := "arcade/pacland/pl_mcu.rom" & ENDSTR;
+constant PL_RGPAL_ROM      : string    := "arcade/pacland/pl_rgpal.rom" & ENDSTR;
+constant PL_BPAL_ROM       : string    := "arcade/pacland/pl_bpal.rom" & ENDSTR;
+constant PL_SCR0PAL_ROM    : string    := "arcade/pacland/pl_scr0pal.rom" & ENDSTR;
+constant PL_SCR1PAL_ROM    : string    := "arcade/pacland/pl_scr1pal.rom" & ENDSTR;
+constant PL_OBJPAL_ROM     : string    := "arcade/pacland/pl_objpal.rom" & ENDSTR;
 
-constant C_CRTROMS_AUTO_NUM   : natural := 1;
-constant C_CRTROMS_AUTO_NAMES : string := PACLAND_ROM & ENDSTR;
-constant C_CRTROMS_AUTO      : crtrom_buf_array := (
-    C_CRTROMTYPE_DEVICE, C_DEV_PACLAND, C_CRTROMTYPE_MANDATORY, PACLAND_ROM_START,
-    x"EEEE"
-);
+-- Filename offsets
+constant PL_MAIN_START        : std_logic_vector(15 downto 0) := x"0000";
+constant PL_MCUSUB_START      : std_logic_vector(15 downto 0) := PL_MAIN_START + PL_MAIN_ROM'length;
+constant PL_SCR0_START        : std_logic_vector(15 downto 0) := PL_MCUSUB_START + PL_MCUSUB_ROM'length;
+constant PL_SCR1_START        : std_logic_vector(15 downto 0) := PL_SCR0_START + PL_SCR0_ROM'length;
+constant PL_OBJ_START         : std_logic_vector(15 downto 0) := PL_SCR1_START + PL_SCR1_ROM'length;
+constant PL_MCU_START         : std_logic_vector(15 downto 0) := PL_OBJ_START + PL_OBJ_ROM'length;
+constant PL_RGPAL_START       : std_logic_vector(15 downto 0) := PL_MCU_START + PL_MCU_ROM'length;
+constant PL_BPAL_START        : std_logic_vector(15 downto 0) := PL_RGPAL_START + PL_RGPAL_ROM'length;
+constant PL_SCR0PAL_START     : std_logic_vector(15 downto 0) := PL_BPAL_START + PL_BPAL_ROM'length;
+constant PL_SCR1PAL_START     : std_logic_vector(15 downto 0) := PL_SCR0PAL_START + PL_SCR0PAL_ROM'length;
+constant PL_OBJPAL_START      : std_logic_vector(15 downto 0) := PL_SCR1PAL_START + PL_SCR1PAL_ROM'length;
+
+constant C_CRTROMS_AUTO_NUM : natural := 11;
+constant C_CRTROMS_AUTO_NAMES : string :=
+   PL_MAIN_ROM &
+   PL_MCUSUB_ROM &
+   PL_SCR0_ROM &
+   PL_SCR1_ROM &
+   PL_OBJ_ROM &
+   PL_MCU_ROM &
+   PL_RGPAL_ROM &
+   PL_BPAL_ROM &
+   PL_SCR0PAL_ROM &
+   PL_SCR1PAL_ROM &
+   PL_OBJPAL_ROM &
+   ENDSTR;
+   
+constant C_CRTROMS_AUTO : crtrom_buf_array := (
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_MAIN, C_CRTROMTYPE_MANDATORY, PL_MAIN_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_MCUSUB, C_CRTROMTYPE_MANDATORY, PL_MCUSUB_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_SCR0, C_CRTROMTYPE_MANDATORY, PL_SCR0_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_SCR1, C_CRTROMTYPE_MANDATORY, PL_SCR1_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_OBJ, C_CRTROMTYPE_MANDATORY, PL_OBJ_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_MCU, C_CRTROMTYPE_MANDATORY, PL_MCU_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_RGPAL, C_CRTROMTYPE_MANDATORY, PL_RGPAL_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_BPAL, C_CRTROMTYPE_MANDATORY, PL_BPAL_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_SCR0PAL, C_CRTROMTYPE_MANDATORY, PL_SCR0PAL_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_SCR1PAL, C_CRTROMTYPE_MANDATORY, PL_SCR1PAL_START,
+       C_CRTROMTYPE_DEVICE, C_DEV_PL_OBJPAL, C_CRTROMTYPE_MANDATORY, PL_OBJPAL_START,
+       x"EEEE"
+    );
 
 ----------------------------------------------------------------------------------------------------------
 -- Audio filters

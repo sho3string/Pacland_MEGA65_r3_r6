@@ -1,57 +1,62 @@
 reg jsr_en;
 reg [11:0] jsr_ua, jsr_ret, uaddr;
 
-// wire [4:0] cc_sel;
 // wire [3:0] alu_sel;
 // wire [1:0] carry_sel;
+// wire [4:0] cc_sel;
 // wire [1:0] ea_sel;
 // wire [4:0] jsr_sel;
 // wire [3:0] ld_sel;
 // wire [1:0] opnd_sel;
 // wire [3:0] rmux_sel;
 
-// wire       op0inv;
-// wire       fetch;
-// wire       ni;
-// wire       swi;
-// wire       wr;
+// wire       alu16;
 // wire       alt;
 // wire       branch;
 // wire       brlatch;
-// wire       alu16;
 // wire       halt;
+// wire       fetch;
+// wire       op0inv;
+// wire       ni;
 // wire       inc_pc;
+// wire       wr;
 // wire       md_shift;
+// wire       swi;
 
 reg  [39:0] ucode_rom[0:2**12-1];
 wire [39:0] ucode_data;
 
+// Pac-Land uses an HD63701V MCU, which requires HD6301 microcode.
+// The standard 6801 microcode lacks instructions such as OIM ($72),
+// causing the MCU to halt during startup.
+// Generated from JTFRAME's jt6301.yaml / 6301.yaml.
+// Keep 6801.uc, 6801.vh and 6801_param.vh from the same generation.
 initial begin
-    $readmemb("/tmp/jt6801-generated/6801.uc",ucode_rom);
+    $readmemb("/mnt/hgfs/Github/Pacland/CORE/jotego/jtframe/hdl/jt680x/hdl/6801.uc", ucode_rom);
 end
 
 assign ucode_data = ucode_rom[uaddr];
 
-assign op0inv     = ucode_data[ 0+:1];
-assign fetch      = ucode_data[10+:1];
-assign ni         = ucode_data[13+:1];
-assign swi        = ucode_data[14+:1];
-assign wr         = ucode_data[15+:1];
-assign alt        = ucode_data[16+:1];
-assign branch     = ucode_data[17+:1];
-assign brlatch    = ucode_data[18+:1];
-assign alu16      = ucode_data[19+:1];
-assign halt       = ucode_data[20+:1];
-assign inc_pc     = ucode_data[34+:1];
-assign md_shift   = ucode_data[39+:1];
-assign cc_sel     = ucode_data[ 1+:5];
-assign alu_sel    = ucode_data[ 6+:4];
-assign carry_sel  = ucode_data[11+:2];
-assign ea_sel     = ucode_data[21+:2];
-assign jsr_sel    = ucode_data[23+:5];
-assign ld_sel     = ucode_data[28+:4];
-assign opnd_sel   = ucode_data[32+:2];
-assign rmux_sel   = ucode_data[35+:4];
+assign alu16      = ucode_data[ 0+:1];
+assign alt        = ucode_data[ 5+:1];
+assign branch     = ucode_data[ 6+:1];
+assign brlatch    = ucode_data[ 7+:1];
+assign halt       = ucode_data[17+:1];
+assign fetch      = ucode_data[18+:1];
+assign op0inv     = ucode_data[28+:1];
+assign ni         = ucode_data[29+:1];
+assign inc_pc     = ucode_data[32+:1];
+assign wr         = ucode_data[37+:1];
+assign md_shift   = ucode_data[38+:1];
+assign swi        = ucode_data[39+:1];
+assign alu_sel    = ucode_data[ 1+:4];
+assign carry_sel  = ucode_data[ 8+:2];
+assign cc_sel     = ucode_data[10+:5];
+assign ea_sel     = ucode_data[15+:2];
+assign jsr_sel    = ucode_data[19+:5];
+assign ld_sel     = ucode_data[24+:4];
+assign opnd_sel   = ucode_data[30+:2];
+assign rmux_sel   = ucode_data[33+:4];
 
 
 always @* begin

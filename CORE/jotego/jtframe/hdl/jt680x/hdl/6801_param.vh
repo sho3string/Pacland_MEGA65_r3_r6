@@ -1,8 +1,25 @@
 /* SPDX-FileCopyrightText: 2026 Jose Tejada Gomez
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Date: 19-10-2026 */
+ * Date: 23-10-2026 */
 
 // Control signals
+localparam [3:0] // ALU
+         ADD_ALU = 4'd1,
+         AND_ALU = 4'd2,
+         ASR_ALU = 4'd3,
+         DAA_ALU = 4'd4,
+         EOR_ALU = 4'd5,
+         LSL_ALU = 4'd6,
+         LSR_ALU = 4'd7,
+         MUL_ALU = 4'd8,
+          OR_ALU = 4'd9,
+         SUB_ALU = 4'd10;
+
+localparam [1:0] // CARRY
+       CIN_CARRY = 2'd1,
+       SHL_CARRY = 2'd2,
+       SHR_CARRY = 2'd3;
+
 localparam [4:0] // CC
             C_CC = 5'd1,
            C0_CC = 5'd2,
@@ -20,23 +37,6 @@ localparam [4:0] // CC
            V0_CC = 5'd14,
            V1_CC = 5'd15,
             Z_CC = 5'd16;
-
-localparam [3:0] // ALU
-         ADD_ALU = 4'd1,
-         AND_ALU = 4'd2,
-         ASR_ALU = 4'd3,
-         DAA_ALU = 4'd4,
-         EOR_ALU = 4'd5,
-         LSL_ALU = 4'd6,
-         LSR_ALU = 4'd7,
-         MUL_ALU = 4'd8,
-          OR_ALU = 4'd9,
-         SUB_ALU = 4'd10;
-
-localparam [1:0] // CARRY
-       CIN_CARRY = 2'd1,
-       SHL_CARRY = 2'd2,
-       SHR_CARRY = 2'd3;
 
 localparam [1:0] // EA
             M_EA = 2'd1,

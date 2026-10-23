@@ -90,6 +90,22 @@ architecture synthesis of main is
    constant ROM_SCR1PAL_START  : natural := 16#37C00#;
    constant ROM_OBJPAL_START   : natural := 16#38000#;
    constant ROM_END            : natural := 16#38400#;
+   
+   -- Offer some keyboard controls in addition to Joy 1 Controls
+   constant m65_1          : integer := 56; --Player 1 Start
+   constant m65_2          : integer := 59; --Player 2 Start
+   constant m65_5          : integer := 16; --Insert coin 1
+   constant m65_6          : integer := 19; --Insert coin 2
+   constant m65_9          : integer := 32; --Service button
+    
+   constant m65_up_crsr    : integer := 73; --Player up
+   constant m65_vert_crsr  : integer := 7;  --Player down
+   constant m65_left_crsr  : integer := 74; --Player left
+   constant m65_horz_crsr  : integer := 2;  --Player right
+   constant m65_z          : integer := 12; --Fire 1
+   constant m65_x          : integer := 23; --Fire 2
+   constant m65_c          : integer := 20; --Fire 3
+   constant m65_capslock   : integer := 72; --Pause
 
    signal keyboard_n            : std_logic_vector(79 downto 0);
    signal reset_async           : std_logic;
@@ -99,14 +115,6 @@ architecture synthesis of main is
    signal cen_c30               : std_logic := '0';
    signal pxl_div               : unsigned(2 downto 0) := (others => '0');
    signal c30_acc               : integer range 0 to 124 := 0;
-   signal pl_red                : std_logic_vector(3 downto 0);
-   signal pl_green              : std_logic_vector(3 downto 0);
-   signal pl_blue               : std_logic_vector(3 downto 0);
-   signal pl_lhbl               : std_logic;
-   signal pl_lvbl               : std_logic;
-   signal pl_hs                 : std_logic;
-   signal pl_vs                 : std_logic;
-   signal pl_dip_flip           : std_logic;
    signal pl_cab                : std_logic_vector(3 downto 0);
    signal pl_coin               : std_logic_vector(3 downto 0);
    signal pl_joy1               : std_logic_vector(6 downto 0);
@@ -186,7 +194,36 @@ architecture synthesis of main is
    signal dn_we_scr0pal_0       : std_logic;
    signal dn_we_scr1pal_0       : std_logic;
    signal dn_we_objpal_0        : std_logic;
+   
+   signal mcu_addr_prev         : std_logic_vector(11 downto 0) := (others => '0');
+   signal mcu_activity          : std_logic := '0';
+   signal mcu_led_counter       : unsigned(23 downto 0) := (others => '0');
+   
+   signal pl_mcu_halted         : std_logic;
+   
+   signal pl_cpu_debug          : std_logic_vector(4 downto 0);
+   signal pl_ila_addr           : std_logic_vector(16 downto 0);
+   signal pl_ila_data           : std_logic_vector(7 downto 0);
+   signal pl_ila_ok             : std_logic;
+   signal pl_cpu_addr_debug     : std_logic_vector(15 downto 0);
+   signal pl_cpu_rnw_debug      : std_logic;
+   signal pl_cpu_write_8000     : std_logic;
 
+   attribute mark_debug : string;
+   attribute mark_debug of pl_ila_addr        : signal is "true";
+   attribute mark_debug of pl_ila_data        : signal is "true";
+   attribute mark_debug of pl_ila_ok          : signal is "true";
+   attribute mark_debug of pl_cpu_debug       : signal is "true";
+   attribute mark_debug of pl_cpu_addr_debug  : signal is "true";
+   attribute mark_debug of pl_cpu_rnw_debug   : signal is "true";
+   attribute mark_debug of pl_cpu_dout        : signal is "true";
+   attribute mark_debug of pl_cpu_write_8000  : signal is "true";
+   attribute mark_debug of pl_mcu_halted      : signal is "true";
+   attribute mark_debug of pl_mcusub_addr     : signal is "true";
+   attribute mark_debug of video_vblank_o     : signal is "true";
+
+   
+ 
     -- Byte-addressed ROM layout; each ROM lane is an 8-bit dual-clock RAM.
     -- MCU: $36000-$36FFF, palette PROMs: five successive 1KB regions.
    -- Dual-clock ROM/PROM storage (runtime read, QNICE write)
@@ -226,7 +263,18 @@ architecture synthesis of main is
    end component;
 
       begin
-
+      
+    
+    pl_ila_addr <= pl_main_addr;
+    pl_ila_data <= pl_main_data;
+    pl_ila_ok   <= pl_main_ok;
+    
+    pl_cpu_write_8000 <= '1' when
+    pl_cpu_addr_debug = x"8000" and
+    pl_cpu_rnw_debug = '0'
+    else '0';
+    
+    
    ---------------------------------------------------------------------------
    -- Reset and clock enables
    ---------------------------------------------------------------------------
@@ -242,64 +290,84 @@ architecture synthesis of main is
       dest_arst         => reset_48
    );
 
-    -- Pixel 6 MHz, overlay 24 MHz, CUS30 3.072 MHz (48 MHz source).
+
+
+   
+   
+    -- Pixel 6.144 MHz, overlay 24.576 MHz, CUS30 3.072 MHz.
+    -- Master clock: 49.152 MHz.
     process(clk_main_i)
-   begin
+    begin
         if rising_edge(clk_main_i) then
-            pxl_div <= pxl_div + 1;
-            pxl_cen <= '0';
+            pxl_div  <= pxl_div + 1;
+            pxl_cen  <= '0';
             pxl2_cen <= '0';
-            cen_c30 <= '0';
+            cen_c30  <= '0';
+    
             if pxl_div = 7 then
                 pxl_cen <= '1';
             end if;
-            if pxl_div(0) = '1' then
+    
+            --if pxl_div(0) = '1' then
+            --    pxl2_cen <= '1';
+            --end if;
+            if pxl_div(1 downto 0) = "11" then
                 pxl2_cen <= '1';
             end if;
-            if c30_acc >= 117 then
-                c30_acc <= c30_acc + 8 - 125;
+    
+            -- 49.152 MHz / 16 = 3.072 MHz
+            if c30_acc >= 15 then
+                c30_acc <= 0;
                 cen_c30 <= '1';
             else
-                c30_acc <= c30_acc + 8;
+                c30_acc <= c30_acc + 1;
             end if;
-      end if;
-   end process;
+                    end if;
+    end process;
+
 
    ---------------------------------------------------------------------------
    -- Video and audio outputs
    ---------------------------------------------------------------------------
-   video_ce_o <= pxl_cen;
-    video_ce_ovl_o <= pxl2_cen; -- 24 MHz overlay enable
-    video_red_o <= pl_red;
-    video_green_o <= pl_green;
-    video_blue_o <= pl_blue;
-    video_hs_o <= pl_hs;
-    video_vs_o <= pl_vs;
-    video_hblank_o <= not pl_lhbl;
-    video_vblank_o <= not pl_lvbl;
+    video_ce_o <= pxl_cen;
     -- CUS30: sign-extend 13-bit PCM to 16 bits, then scale by eight.
     audio_left_o  <= shift_left(resize(signed(pl_cus_l(12 downto 0)), 16), 3);
     audio_right_o <= shift_left(resize(signed(pl_cus_r(12 downto 0)), 16), 3);
-    debug_led_o <= not pl_lvbl;
 
    ---------------------------------------------------------------------------
    -- DIP switches and cabinet controls
    ---------------------------------------------------------------------------
-   pl_dipsw_a <= not (osm_control_i(C_MENU_SW1_7) & osm_control_i(C_MENU_SW1_6) &
-                       osm_control_i(C_MENU_SW1_5) & osm_control_i(C_MENU_SW1_4) &
-                       osm_control_i(C_MENU_SW1_3) & osm_control_i(C_MENU_SW1_2) &
-                       osm_control_i(C_MENU_SW1_1) & osm_control_i(C_MENU_SW1_0));
-    pl_dipsw_b <= not (osm_control_i(C_MENU_SW2_7) & osm_control_i(C_MENU_SW2_6) &
-                       osm_control_i(C_MENU_SW2_5) & osm_control_i(C_MENU_SW2_4) &
-                       osm_control_i(C_MENU_SW2_3) & osm_control_i(C_MENU_SW2_2) &
-                       osm_control_i(C_MENU_SW2_1) & osm_control_i(C_MENU_SW2_0));
+    pl_dipsw_a <= not (osm_control_i(C_MENU_SW1_7) & 
+                       osm_control_i(C_MENU_SW1_6) &
+                       osm_control_i(C_MENU_SW1_5) & 
+                       osm_control_i(C_MENU_SW1_4) &
+                       osm_control_i(C_MENU_SW1_3) & 
+                       osm_control_i(C_MENU_SW1_2) &
+                       osm_control_i(C_MENU_SW1_1) & 
+                       osm_control_i(C_MENU_SW1_0));
+                       
+    pl_dipsw_b <= not (osm_control_i(C_MENU_SW2_7) &
+                       osm_control_i(C_MENU_SW2_6) &
+                       osm_control_i(C_MENU_SW2_5) & 
+                       osm_control_i(C_MENU_SW2_4) &
+                       osm_control_i(C_MENU_SW2_3) & 
+                       osm_control_i(C_MENU_SW2_2) &
+                       osm_control_i(C_MENU_SW2_1) & 
+                       osm_control_i(C_MENU_SW2_0));
+                       
     pl_dipsw <= x"0000" & pl_dipsw_b & pl_dipsw_a;
     -- Cabinet inputs are active low, matching jtpaclan_cab.v.
-    pl_joy1(0) <= joy_1_right_n_i and keyboard_n(2);
-    pl_joy1(1) <= joy_1_left_n_i and keyboard_n(74);
-    pl_joy1(2) <= joy_1_down_n_i and keyboard_n(7);
-    pl_joy1(3) <= joy_1_up_n_i and keyboard_n(73);
-    pl_joy1(4) <= joy_1_fire_n_i and keyboard_n(12);
+    
+    pl_joy1 <= (others => '1');
+    pl_joy2 <= (others => '1');
+    pl_cab  <= (others => '1');
+    pl_coin <= (others => '1');
+    
+    /*pl_joy1(0) <= joy_1_right_n_i and keyboard_n(m65_horz_crsr);
+    pl_joy1(1) <= joy_1_left_n_i and keyboard_n(m65_left_crsr);
+    pl_joy1(2) <= joy_1_down_n_i and keyboard_n(m65_vert_crsr);
+    pl_joy1(3) <= joy_1_up_n_i and keyboard_n(m65_up_crsr);
+    pl_joy1(4) <= joy_1_fire_n_i and keyboard_n(m65_z);
     pl_joy1(6 downto 5) <= "11";
     pl_joy2(0) <= joy_2_right_n_i;
     pl_joy2(1) <= joy_2_left_n_i;
@@ -307,8 +375,8 @@ architecture synthesis of main is
     pl_joy2(3) <= joy_2_up_n_i;
     pl_joy2(4) <= joy_2_fire_n_i;
     pl_joy2(6 downto 5) <= "11";
-    pl_cab <= "11" & keyboard_n(59) & keyboard_n(56);
-    pl_coin <= "11" & keyboard_n(16) & keyboard_n(19);
+    pl_cab  <= "11" & keyboard_n(m65_2) & keyboard_n(m65_1);
+    pl_coin <= "11" & keyboard_n(m65_5) & keyboard_n(m65_6);*/
 
    ---------------------------------------------------------------------------
    -- Keyboard interface
@@ -331,20 +399,20 @@ architecture synthesis of main is
       pxl_cen           => pxl_cen,
       pxl2_cen          => pxl2_cen,
       cen_c30           => cen_c30,
-      red               => pl_red,
-      green             => pl_green,
-      blue              => pl_blue,
-      LHBL              => pl_lhbl,
-      LVBL              => pl_lvbl,
-      HS                => pl_hs,
-      VS                => pl_vs,
+      red               => video_red_o,
+      green             => video_green_o,
+      blue              => video_blue_o,
+      LHBL              => video_hblank_o,
+      LVBL              => video_vblank_o,
+      HS                => video_hs_o,
+      VS                => video_vs_o,
       cab_1p            => pl_cab,
       coin              => pl_coin,
       joystick1         => pl_joy1,
       joystick2         => pl_joy2,
-      service           => keyboard_n(32),
-      dip_pause         => pause_i,
-      dip_flip          => pl_dip_flip,
+      service           => keyboard_n(m65_9),
+      dip_pause         => keyboard_n(m65_capslock),
+      dip_flip          => open,
       dipsw             => pl_dipsw,
       gfx_en            => "1111",
       debug_bus         => (others => '0'),
@@ -400,52 +468,38 @@ architecture synthesis of main is
       sndram_dout       => pl_sndram_dout,
       sndram_we         => pl_sndram_we,
       cus30_l           => pl_cus_l,
-      cus30_r           => pl_cus_r
+      cus30_r           => pl_cus_r,
+      --mcu_halted        => pl_mcu_halted
+      mcu_halted        => pl_mcu_halted,
+      cpu_debug         => pl_cpu_debug,
+      
+      cpu_addr_debug => pl_cpu_addr_debug,
+      cpu_rnw_debug  => pl_cpu_rnw_debug
    );
-
-   ---------------------------------------------------------------------------
-   -- ROM read latency handshakes
-   ---------------------------------------------------------------------------
+   
+   
+    
+    ---------------------------------------------------------------------------
    -- ROM address stability handshakes
-    process(clk_main_i)
+   ---------------------------------------------------------------------------
+   process(clk_main_i)
    begin
-        if rising_edge(clk_main_i) then
-            pl_main_addr_d <= pl_main_addr;
-            pl_mcusub_addr_d <= pl_mcusub_addr;
-            pl_scr0_addr_d <= pl_scr0_addr;
-            pl_scr1_addr_d <= pl_scr1_addr;
-            pl_obj_addr_d <= pl_obj_addr;
-         if pl_main_addr = pl_main_addr_d then
-            pl_main_ok <= '1';
-         else
-            pl_main_ok <= '0';
-         end if;
-         if pl_mcusub_addr = pl_mcusub_addr_d then
-            pl_mcusub_ok <= '1';
-         else
-            pl_mcusub_ok <= '0';
-         end if;
-         if pl_scr0_addr = pl_scr0_addr_d then
-            pl_scr0_ok <= '1';
-         else
-            pl_scr0_ok <= '0';
-         end if;
-         if pl_scr1_addr = pl_scr1_addr_d then
-            pl_scr1_ok <= '1';
-         else
-            pl_scr1_ok <= '0';
-         end if;
-         if pl_obj_addr = pl_obj_addr_d then
-            pl_obj_ok <= '1';
-         else
-            pl_obj_ok <= '0';
-         end if;
+      if rising_edge(clk_main_i) then
+         pl_main_addr_d   <= pl_main_addr;
+         pl_mcusub_addr_d <= pl_mcusub_addr;
+         pl_scr0_addr_d   <= pl_scr0_addr;
+         pl_scr1_addr_d   <= pl_scr1_addr;
+         pl_obj_addr_d    <= pl_obj_addr;
+
       end if;
    end process;
 
-   -- CPU port addresses use the low bits of the exported main address.
-   -- Verify this address equivalence against jtpaclan_main before hardware testing.
-
+   pl_main_ok   <= '1' when pl_main_addr   = pl_main_addr_d   else '0';
+   pl_mcusub_ok <= '1' when pl_mcusub_addr = pl_mcusub_addr_d else '0';
+   pl_scr0_ok   <= '1' when pl_scr0_addr   = pl_scr0_addr_d   else '0';
+   pl_scr1_ok   <= '1' when pl_scr1_addr   = pl_scr1_addr_d   else '0';
+   pl_obj_ok    <= '1' when pl_obj_addr    = pl_obj_addr_d    else '0';
+  
    ---------------------------------------------------------------------------
    -- Writable video and object RAM
    ---------------------------------------------------------------------------
@@ -638,7 +692,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_scr0_addr(12 downto 1),
+      address_a         => pl_scr0_addr(11 downto 0),
       q_a               => pl_scr0_data(7 downto 0),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(12 downto 1),
@@ -653,7 +707,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_scr0_addr(12 downto 1),
+      address_a         => pl_scr0_addr(11 downto 0),
       q_a               => pl_scr0_data(15 downto 8),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(12 downto 1),
@@ -671,7 +725,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_scr1_addr(12 downto 1),
+      address_a         => pl_scr1_addr(11 downto 0),
       q_a               => pl_scr1_data(7 downto 0),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(12 downto 1),
@@ -686,7 +740,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_scr1_addr(12 downto 1),
+      address_a         => pl_scr1_addr(11 downto 0),
       q_a               => pl_scr1_data(15 downto 8),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(12 downto 1),
@@ -704,7 +758,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_obj_addr(15 downto 2),
+      address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(7 downto 0),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(15 downto 2),
@@ -719,7 +773,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_obj_addr(15 downto 2),
+      address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(15 downto 8),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(15 downto 2),
@@ -734,7 +788,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_obj_addr(15 downto 2),
+      address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(23 downto 16),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(15 downto 2),
@@ -749,7 +803,7 @@ architecture synthesis of main is
    )
    port map (
       clock_a           => clk_main_i,
-      address_a         => pl_obj_addr(15 downto 2),
+      address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(31 downto 24),
       clock_b           => dn_clk_i,
       address_b         => dn_addr_i(15 downto 2),

@@ -258,7 +258,7 @@ signal video_vs            : std_logic;
 signal video_hs            : std_logic;
 signal video_vblank        : std_logic;
 signal video_hblank        : std_logic;
-
+signal div                 : std_logic_vector(2 downto 0);
 signal mcu_debug_led       : std_logic;
 
 begin
@@ -364,7 +364,7 @@ begin
          -- Video output
          -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
          video_ce_o           => video_ce, -- 6 MHz pixel enable
-         video_ce_ovl_o       => video_ce_ovl,
+         video_ce_ovl_o       => open,
          video_red_o          => main_video_red,
          video_green_o        => main_video_green,
          video_blue_o         => main_video_blue,
@@ -408,17 +408,29 @@ begin
          osm_control_i        => main_osm_control_i
       ); -- i_main
       
-    -- Expand 4-bit arcade RGB to the framework's 8-bit channels.
-   video_red   <= main_video_red   & main_video_red;
-   video_green <= main_video_green & main_video_green;
-   video_blue  <= main_video_blue  & main_video_blue;
-
-   -- main.vhd already outputs active-high blanking and the correct sync polarity.
-   video_hs     <= main_video_hs;
-   video_vs     <= main_video_vs;
-   video_hblank <= main_video_hblank;
-   video_vblank <= main_video_vblank;
-
+    process(main_clk)
+    begin
+       if rising_edge(main_clk) then
+          -- Overlay clock enable (main clock / 2)
+          video_ce_ovl <= '0';
+          div <= std_logic_vector(unsigned(div) + 1);
+    
+          if div(0) = '1' then
+             video_ce_ovl <= '1';
+          end if;
+    
+          -- Expand 4-bit arcade RGB to 8-bit
+          video_red   <= main_video_red   & main_video_red;
+          video_green <= main_video_green & main_video_green;
+          video_blue  <= main_video_blue  & main_video_blue;
+    
+          -- Video sync and blanking
+          video_hs     <= main_video_hs;
+          video_vs     <= main_video_vs;
+          video_hblank <= not main_video_hblank;
+          video_vblank <= not main_video_vblank;
+       end if;
+end process;
    ---------------------------------------------------------------------------------------------
    -- Audio and video settings (QNICE clock domain)
    ---------------------------------------------------------------------------------------------
@@ -478,28 +490,63 @@ begin
    -- Core specific device handling (QNICE clock domain)
    ---------------------------------------------------------------------------------------------
 
-   -- One mandatory packed ROM.
+   -- Each Pac-Land ROM has a separate QNICE device.
+   -- Translate file-local addresses to the existing BRAM download map.
    core_specific_devices : process(all)
+      variable rom_offset : natural;
+      variable rom_size   : natural;
    begin
       qnice_dev_data_o <= x"EEEE";
       qnice_dev_wait_o <= '0';
       qnice_dn_wr <= '0';
       qnice_dn_addr <= (others => '0');
       qnice_dn_data <= (others => '0');
+      rom_offset := 0;
+      rom_size := 0;
 
       case qnice_dev_id_i is
-         when C_DEV_PACLAND =>
-            if unsigned(qnice_dev_addr_i) < 16#38400# then
-               qnice_dn_wr <= qnice_dev_ce_i and qnice_dev_we_i;
-               qnice_dn_addr <= std_logic_vector(resize(unsigned(qnice_dev_addr_i), qnice_dn_addr'length));
-               qnice_dn_data <= qnice_dev_data_i(7 downto 0);
-            end if;
+         when C_DEV_PL_MAIN =>
+            rom_offset := 16#00000#;
+            rom_size := 16#20000#;
+         when C_DEV_PL_MCUSUB =>
+            rom_offset := 16#20000#;
+            rom_size := 16#2000#;
+         when C_DEV_PL_SCR0 =>
+            rom_offset := 16#22000#;
+            rom_size := 16#2000#;
+         when C_DEV_PL_SCR1 =>
+            rom_offset := 16#24000#;
+            rom_size := 16#2000#;
+         when C_DEV_PL_OBJ =>
+            rom_offset := 16#26000#;
+            rom_size := 16#10000#;
+         when C_DEV_PL_MCU =>
+            rom_offset := 16#36000#;
+            rom_size := 16#1000#;
+         when C_DEV_PL_RGPAL =>
+            rom_offset := 16#37000#;
+            rom_size := 16#400#;
+         when C_DEV_PL_BPAL =>
+            rom_offset := 16#37400#;
+            rom_size := 16#400#;
+         when C_DEV_PL_SCR0PAL =>
+            rom_offset := 16#37800#;
+            rom_size := 16#400#;
+         when C_DEV_PL_SCR1PAL =>
+            rom_offset := 16#37C00#;
+            rom_size := 16#400#;
+         when C_DEV_PL_OBJPAL =>
+            rom_offset := 16#38000#;
+            rom_size := 16#400#;
          when others =>
             null;
       end case;
 
-      if qnice_rst_i = '1' then
-         qnice_dn_wr <= '0';
+      if rom_size /= 0 and unsigned(qnice_dev_addr_i) < rom_size then
+         qnice_dn_wr <= qnice_dev_ce_i and qnice_dev_we_i and not qnice_rst_i;
+         qnice_dn_addr <= std_logic_vector(to_unsigned(rom_offset, qnice_dn_addr'length) +
+                                          resize(unsigned(qnice_dev_addr_i), qnice_dn_addr'length));
+         qnice_dn_data <= qnice_dev_data_i(7 downto 0);
       end if;
    end process core_specific_devices;
 

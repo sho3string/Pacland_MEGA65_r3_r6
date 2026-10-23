@@ -5,9 +5,9 @@
 -- Clock Generator using the Xilinx specific MMCME2_ADV
 --
 -- Pac-Land / JTFRAME:
---   Input:  100 MHz
---   VCO:    600 MHz
---   Main:    48 MHz
+--   Input:  100.000000 MHz
+--   VCO:    725.000000 MHz
+--   Main:    49.152542 MHz
 --
 -- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
 -------------------------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ entity clk is
    port (
       sys_clk_i       : in  std_logic;   -- expects 100 MHz
 
-      main_clk_o      : out std_logic;   -- 48 MHz main clock
+      main_clk_o      : out std_logic;   -- 49.152542 MHz main clock
       main_rst_o      : out std_logic    -- synchronized reset
    );
 end entity clk;
@@ -40,7 +40,7 @@ signal main_locked       : std_logic;
 begin
 
    -------------------------------------------------------------------------------------
-   -- Generate 48 MHz JTFRAME master clock
+   -- Generate 49.152542 MHz JTFRAME master clock
    -------------------------------------------------------------------------------------
 
    i_clk_main : MMCME2_ADV
@@ -53,12 +53,12 @@ begin
       REF_JITTER1          => 0.010,
 
       DIVCLK_DIVIDE        => 1,
-      CLKFBOUT_MULT_F      => 6.000,      -- VCO = 600 MHz
+      CLKFBOUT_MULT_F      => 7.250,      -- VCO = 725 MHz
       CLKFBOUT_PHASE       => 0.000,
       CLKFBOUT_USE_FINE_PS => FALSE,
 
       -- Pac-Land / JTFRAME master clock
-      CLKOUT0_DIVIDE_F     => 12.500,     -- 600 / 12.5 = 48 MHz
+      CLKOUT0_DIVIDE_F     => 14.750,     -- 725 / 14.75 = 49.152542 MHz
       CLKOUT0_PHASE        => 0.000,
       CLKOUT0_DUTY_CYCLE   => 0.500,
       CLKOUT0_USE_FINE_PS  => FALSE
@@ -107,7 +107,7 @@ begin
       O => clkfb
    );
 
-   -- 48 MHz JTFRAME master clock
+   -- 49.152542 MHz JTFRAME master clock
    main_clk_bufg : BUFG
    port map (
       I => main_clk_mmcm,
@@ -118,7 +118,7 @@ begin
    -- Reset generation
    -------------------------------------------------------------------------------------
 
-   -- 48 MHz domain
+   -- 49.152542 MHz domain
    i_xpm_cdc_async_rst_main : xpm_cdc_async_rst
    generic map (
       RST_ACTIVE_HIGH => 1,

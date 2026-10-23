@@ -42,10 +42,12 @@ module jt680x_ctrl(
     output reg   stack_busy
 );
 
+wire [4:0] jsr_sel;
+
 `include "6801_param.vh"
 `include "6801.vh"
 
-wire [4:0] jsr_sel;
+
 reg  [2:0] iv_sel;
 wire       halt, swi, ni, still;
 reg        nmi_l, pendng;
