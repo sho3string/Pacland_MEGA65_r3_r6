@@ -195,35 +195,7 @@ architecture synthesis of main is
    signal dn_we_scr1pal_0       : std_logic;
    signal dn_we_objpal_0        : std_logic;
    
-   signal mcu_addr_prev         : std_logic_vector(11 downto 0) := (others => '0');
-   signal mcu_activity          : std_logic := '0';
-   signal mcu_led_counter       : unsigned(23 downto 0) := (others => '0');
-   
-   signal pl_mcu_halted         : std_logic;
-   
-   signal pl_cpu_debug          : std_logic_vector(4 downto 0);
-   signal pl_ila_addr           : std_logic_vector(16 downto 0);
-   signal pl_ila_data           : std_logic_vector(7 downto 0);
-   signal pl_ila_ok             : std_logic;
-   signal pl_cpu_addr_debug     : std_logic_vector(15 downto 0);
-   signal pl_cpu_rnw_debug      : std_logic;
-   signal pl_cpu_write_8000     : std_logic;
 
-   attribute mark_debug : string;
-   attribute mark_debug of pl_ila_addr        : signal is "true";
-   attribute mark_debug of pl_ila_data        : signal is "true";
-   attribute mark_debug of pl_ila_ok          : signal is "true";
-   attribute mark_debug of pl_cpu_debug       : signal is "true";
-   attribute mark_debug of pl_cpu_addr_debug  : signal is "true";
-   attribute mark_debug of pl_cpu_rnw_debug   : signal is "true";
-   attribute mark_debug of pl_cpu_dout        : signal is "true";
-   attribute mark_debug of pl_cpu_write_8000  : signal is "true";
-   attribute mark_debug of pl_mcu_halted      : signal is "true";
-   attribute mark_debug of pl_mcusub_addr     : signal is "true";
-   attribute mark_debug of video_vblank_o     : signal is "true";
-
-   
- 
     -- Byte-addressed ROM layout; each ROM lane is an 8-bit dual-clock RAM.
     -- MCU: $36000-$36FFF, palette PROMs: five successive 1KB regions.
    -- Dual-clock ROM/PROM storage (runtime read, QNICE write)
@@ -264,17 +236,7 @@ architecture synthesis of main is
 
       begin
       
-    
-    pl_ila_addr <= pl_main_addr;
-    pl_ila_data <= pl_main_data;
-    pl_ila_ok   <= pl_main_ok;
-    
-    pl_cpu_write_8000 <= '1' when
-    pl_cpu_addr_debug = x"8000" and
-    pl_cpu_rnw_debug = '0'
-    else '0';
-    
-    
+
    ---------------------------------------------------------------------------
    -- Reset and clock enables
    ---------------------------------------------------------------------------
@@ -337,33 +299,29 @@ architecture synthesis of main is
    ---------------------------------------------------------------------------
    -- DIP switches and cabinet controls
    ---------------------------------------------------------------------------
-    pl_dipsw_a <= not (osm_control_i(C_MENU_SW1_7) & 
-                       osm_control_i(C_MENU_SW1_6) &
-                       osm_control_i(C_MENU_SW1_5) & 
-                       osm_control_i(C_MENU_SW1_4) &
-                       osm_control_i(C_MENU_SW1_3) & 
-                       osm_control_i(C_MENU_SW1_2) &
-                       osm_control_i(C_MENU_SW1_1) & 
-                       osm_control_i(C_MENU_SW1_0));
+    pl_dipsw_a <= not (osm_control_i(C_MENU_SW1_0) & 
+                       osm_control_i(C_MENU_SW1_1) &
+                       osm_control_i(C_MENU_SW1_2) & 
+                       osm_control_i(C_MENU_SW1_3) &
+                       osm_control_i(C_MENU_SW1_4) & 
+                       osm_control_i(C_MENU_SW1_5) &
+                       osm_control_i(C_MENU_SW1_6) & 
+                       osm_control_i(C_MENU_SW1_7));
                        
-    pl_dipsw_b <= not (osm_control_i(C_MENU_SW2_7) &
-                       osm_control_i(C_MENU_SW2_6) &
-                       osm_control_i(C_MENU_SW2_5) & 
-                       osm_control_i(C_MENU_SW2_4) &
-                       osm_control_i(C_MENU_SW2_3) & 
-                       osm_control_i(C_MENU_SW2_2) &
-                       osm_control_i(C_MENU_SW2_1) & 
-                       osm_control_i(C_MENU_SW2_0));
+    pl_dipsw_b <= not (osm_control_i(C_MENU_SW2_0) &
+                       osm_control_i(C_MENU_SW2_1) &
+                       osm_control_i(C_MENU_SW2_2) & 
+                       osm_control_i(C_MENU_SW2_3) &
+                       osm_control_i(C_MENU_SW2_4) & 
+                       osm_control_i(C_MENU_SW2_5) &
+                       osm_control_i(C_MENU_SW2_6) & 
+                       osm_control_i(C_MENU_SW2_7));
                        
     pl_dipsw <= x"0000" & pl_dipsw_b & pl_dipsw_a;
     -- Cabinet inputs are active low, matching jtpaclan_cab.v.
+   
     
-    pl_joy1 <= (others => '1');
-    pl_joy2 <= (others => '1');
-    pl_cab  <= (others => '1');
-    pl_coin <= (others => '1');
-    
-    /*pl_joy1(0) <= joy_1_right_n_i and keyboard_n(m65_horz_crsr);
+    pl_joy1(0) <= joy_1_right_n_i and keyboard_n(m65_horz_crsr);
     pl_joy1(1) <= joy_1_left_n_i and keyboard_n(m65_left_crsr);
     pl_joy1(2) <= joy_1_down_n_i and keyboard_n(m65_vert_crsr);
     pl_joy1(3) <= joy_1_up_n_i and keyboard_n(m65_up_crsr);
@@ -376,7 +334,7 @@ architecture synthesis of main is
     pl_joy2(4) <= joy_2_fire_n_i;
     pl_joy2(6 downto 5) <= "11";
     pl_cab  <= "11" & keyboard_n(m65_2) & keyboard_n(m65_1);
-    pl_coin <= "11" & keyboard_n(m65_5) & keyboard_n(m65_6);*/
+    pl_coin <= "11" & keyboard_n(m65_5) & keyboard_n(m65_6);
 
    ---------------------------------------------------------------------------
    -- Keyboard interface
@@ -468,13 +426,7 @@ architecture synthesis of main is
       sndram_dout       => pl_sndram_dout,
       sndram_we         => pl_sndram_we,
       cus30_l           => pl_cus_l,
-      cus30_r           => pl_cus_r,
-      --mcu_halted        => pl_mcu_halted
-      mcu_halted        => pl_mcu_halted,
-      cpu_debug         => pl_cpu_debug,
-      
-      cpu_addr_debug => pl_cpu_addr_debug,
-      cpu_rnw_debug  => pl_cpu_rnw_debug
+      cus30_r           => pl_cus_r
    );
    
    

@@ -31,7 +31,6 @@ module jtpaclan_sound(
     input        [ 7:0] rom_data,
     input               rom_ok,
     output              bus_busy,
-    output         wire mcu_halted,
 
     output signed[12:0] cus30_l, cus30_r,
     input        [ 7:0] debug_bus
@@ -44,7 +43,6 @@ reg  [ 7:0] mcu_din;
 reg         uc30_cs, cab_cs, ram_cs, irq_ctl, irq_ack;
 wire        halted, vma, wr, irq;
 
-assign mcu_halted = halted;
 assign bus_busy = rom_cs & ~rom_ok;
 assign ram_addr = A[11:0];
 assign ram_we   = ram_cs & wr;

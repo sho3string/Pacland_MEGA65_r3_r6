@@ -10,7 +10,6 @@ module jtpaclan_main(
 
     output       [ 1:0] palbank,
     output       [ 7:0] cpu_dout,
-    output       [15:0] cpu_addr_debug,
     output       [ 1:0] scr0_we, scr1_we, oram_we,
     output              rnw,
 
@@ -48,7 +47,6 @@ assign bus_busy = rom_cs & ~ok_dly;
 assign scr0_we  = {2{scr0_cs & ~rnw}} & {cpu_addr[0],~cpu_addr[0]};
 assign scr1_we  = {2{scr1_cs & ~rnw}} & {cpu_addr[0],~cpu_addr[0]};
 assign oram_we  = {2{oram_cs & ~rnw}} & {cpu_addr[0],~cpu_addr[0]};
-assign cpu_addr_debug = cpu_addr;
 
 jtframe_mmr_reg #(.W(9)) u_scr0pos(
     .rst        ( rst       ),
@@ -151,7 +149,6 @@ mc6809i u_cpu(
     .RegData    (           )
 );
 `else
-    assign cpu_addr_debug = 16'h0000;
     assign srst=0,
     cpu_dout=0,
     scr0_we=0, scr1_we=0, oram_we=0,rnw=1,rom_addr=0,rom_cs=0, bus_busy=0,
