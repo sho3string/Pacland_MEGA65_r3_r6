@@ -195,6 +195,8 @@ architecture synthesis of main is
    signal dn_we_scr1pal_0       : std_logic;
    signal dn_we_objpal_0        : std_logic;
    
+   signal dn_obj_addr           : std_logic_vector(15 downto 0);
+   
 
     -- Byte-addressed ROM layout; each ROM lane is an 8-bit dual-clock RAM.
     -- MCU: $36000-$36FFF, palette PROMs: five successive 1KB regions.
@@ -252,10 +254,6 @@ architecture synthesis of main is
       dest_arst         => reset_48
    );
 
-
-
-   
-   
     -- Pixel 6.144 MHz, overlay 24.576 MHz, CUS30 3.072 MHz.
     -- Master clock: 49.152 MHz.
     process(clk_main_i)
@@ -293,8 +291,10 @@ architecture synthesis of main is
    ---------------------------------------------------------------------------
     video_ce_o <= pxl_cen;
     -- CUS30: sign-extend 13-bit PCM to 16 bits, then scale by eight.
-    audio_left_o  <= shift_left(resize(signed(pl_cus_l(12 downto 0)), 16), 3);
-    audio_right_o <= shift_left(resize(signed(pl_cus_r(12 downto 0)), 16), 3);
+    audio_left_o  <= signed(pl_cus_l);
+    audio_right_o <= signed(pl_cus_r);
+    
+    
 
    ---------------------------------------------------------------------------
    -- DIP switches and cabinet controls
@@ -699,6 +699,10 @@ architecture synthesis of main is
       data_b            => dn_data_i,
       wren_b            => dn_we_scr1_1
    );
+   
+   -- Convert absolute download address to object-ROM-relative byte address.
+   dn_obj_addr <= std_logic_vector(unsigned(dn_addr_i(15 downto 0)) -
+                                    to_unsigned(ROM_OBJ_START mod 65536, 16));
 
    ---------------------------------------------------------------------------
    -- Sprite graphics ROM
@@ -713,7 +717,7 @@ architecture synthesis of main is
       address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(7 downto 0),
       clock_b           => dn_clk_i,
-      address_b         => dn_addr_i(15 downto 2),
+      address_b         => dn_obj_addr(15 downto 2),
       data_b            => dn_data_i,
       wren_b            => dn_we_obj_0
    );
@@ -728,7 +732,7 @@ architecture synthesis of main is
       address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(15 downto 8),
       clock_b           => dn_clk_i,
-      address_b         => dn_addr_i(15 downto 2),
+      address_b         => dn_obj_addr(15 downto 2),
       data_b            => dn_data_i,
       wren_b            => dn_we_obj_1
    );
@@ -743,7 +747,7 @@ architecture synthesis of main is
       address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(23 downto 16),
       clock_b           => dn_clk_i,
-      address_b         => dn_addr_i(15 downto 2),
+      address_b         => dn_obj_addr(15 downto 2),
       data_b            => dn_data_i,
       wren_b            => dn_we_obj_2
    );
@@ -758,7 +762,7 @@ architecture synthesis of main is
       address_a         => pl_obj_addr(13 downto 0),
       q_a               => pl_obj_data(31 downto 24),
       clock_b           => dn_clk_i,
-      address_b         => dn_addr_i(15 downto 2),
+      address_b         => dn_obj_addr(15 downto 2),
       data_b            => dn_data_i,
       wren_b            => dn_we_obj_3
    );
