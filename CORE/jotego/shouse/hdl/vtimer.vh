@@ -5,7 +5,7 @@ localparam [8:0]
     VS_START = 9'h108,
     VS_END   = 9'h110,
     VCNT_END = 9'h1FF,
-    HS_START = 9'h17f,
-    HS_END   = 9'h01f,
-    HB_START = 9'h160, // 288 visible, 384 total (96 pxl=HB)
-    HB_END   = 9'h040;
+    HS_START = 9'h177,
+    HS_END   = 9'h017,
+    HB_START = 9'h162, // 288 visible, 384 total (96 pxl=HB)
+    HB_END   = 9'h042;

@@ -103,9 +103,12 @@ architecture synthesis of main is
    constant m65_left_crsr  : integer := 74; --Player left
    constant m65_horz_crsr  : integer := 2;  --Player right
    constant m65_z          : integer := 12; --Fire 1
-   constant m65_x          : integer := 23; --Fire 2
-   constant m65_c          : integer := 20; --Fire 3
+   constant m65_x          : integer := 23; --Left
+   constant m65_c          : integer := 20; --Right
+   constant m65_v          : integer := 31; --Fire 1
    constant m65_capslock   : integer := 72; --Pause
+   constant AUDIO_GAIN_SH  : natural := 5;   -- 4 = never clips, 5 = louder; try both
+
 
    signal keyboard_n            : std_logic_vector(79 downto 0);
    signal reset_async           : std_logic;
@@ -117,6 +120,11 @@ architecture synthesis of main is
    signal c30_acc               : integer range 0 to 124 := 0;
    signal pl_cab                : std_logic_vector(3 downto 0);
    signal pl_coin               : std_logic_vector(3 downto 0);
+   signal p1_buttons            : std_logic_vector(2 downto 0);
+   signal p1_mapped             : std_logic_vector(2 downto 0);
+   signal p1_left_n             : std_logic;
+   signal p1_right_n            : std_logic;
+   signal p1_jump_n             : std_logic;
    signal pl_joy1               : std_logic_vector(6 downto 0);
    signal pl_joy2               : std_logic_vector(6 downto 0);
    signal pl_dipsw_a            : std_logic_vector(7 downto 0);
@@ -290,9 +298,21 @@ architecture synthesis of main is
    -- Video and audio outputs
    ---------------------------------------------------------------------------
     video_ce_o <= pxl_cen;
-    -- CUS30: sign-extend 13-bit PCM to 16 bits, then scale by eight.
-    audio_left_o  <= signed(pl_cus_l);
-    audio_right_o <= signed(pl_cus_r);
+    -- CUS30: sign-extend 13-bit PCM to 16 bits, then scale
+    process(clk_main_i)
+       variable l, r : signed(19 downto 0);
+    begin
+       if rising_edge(clk_main_i) then
+          l := shift_left(resize(signed(pl_cus_l(12 downto 0)), 20), AUDIO_GAIN_SH);
+          r := shift_left(resize(signed(pl_cus_r(12 downto 0)), 20), AUDIO_GAIN_SH);
+          if    l >  32767 then audio_left_o  <= to_signed( 32767, 16);
+          elsif l < -32768 then audio_left_o  <= to_signed(-32768, 16);
+          else                  audio_left_o  <= l(15 downto 0); end if;
+          if    r >  32767 then audio_right_o <= to_signed( 32767, 16);
+          elsif r < -32768 then audio_right_o <= to_signed(-32768, 16);
+          else                  audio_right_o <= r(15 downto 0); end if;
+       end if;
+    end process;
     
     
 
@@ -321,21 +341,56 @@ architecture synthesis of main is
     -- Cabinet inputs are active low, matching jtpaclan_cab.v.
    
     
-    pl_joy1(0) <= joy_1_right_n_i and keyboard_n(m65_horz_crsr);
-    pl_joy1(1) <= joy_1_left_n_i and keyboard_n(m65_left_crsr);
+    -- Pac-Land original controls: physical Fire/POTX/POTY, with six
+    -- permutations for the shared upright controls. Active-low throughout.
+    p1_buttons(1) <= joy_1_fire_n_i;
+    p1_buttons(0) <= '0' when (pot1_x_i(7) = '0' and osm_control_i(C_MENU_P1POL_0) = '1') or
+                              (pot1_x_i(7) = '1' and osm_control_i(C_MENU_P1POL_1) = '1') else '1';
+    p1_buttons(2) <= '0' when (pot1_y_i(7) = '0' and osm_control_i(C_MENU_P1POL_0) = '1') or
+                              (pot1_y_i(7) = '1' and osm_control_i(C_MENU_P1POL_1) = '1') else '1';
+
+
+    -- Layout strings denote the physical sequence POTX, Fire, POTY.
+    -- Each output is ordered as (Left, Jump, Right).
+    process(all)
+    begin
+       p1_mapped <= p1_buttons;
+       if osm_control_i(C_MENU_P1LAY_0) = '1' then
+          p1_mapped <= p1_buttons(0) & p1_buttons(1) & p1_buttons(2);
+       elsif osm_control_i(C_MENU_P1LAY_1) = '1' then
+          p1_mapped <= p1_buttons(0) & p1_buttons(2) & p1_buttons(1);
+       elsif osm_control_i(C_MENU_P1LAY_2) = '1' then
+          p1_mapped <= p1_buttons(1) & p1_buttons(0) & p1_buttons(2);
+       elsif osm_control_i(C_MENU_P1LAY_3) = '1' then
+          p1_mapped <= p1_buttons(2) & p1_buttons(0) & p1_buttons(1);
+       elsif osm_control_i(C_MENU_P1LAY_4) = '1' then
+          p1_mapped <= p1_buttons(1) & p1_buttons(2) & p1_buttons(0);
+       elsif osm_control_i(C_MENU_P1LAY_5) = '1' then
+          p1_mapped <= p1_buttons(2) & p1_buttons(1) & p1_buttons(0);
+       end if;
+    end process;
+
+
+    pl_joy1(0) <= p1_right_n
+                  and keyboard_n(m65_horz_crsr) and keyboard_n(m65_c);
+    pl_joy1(1) <= p1_left_n
+                  and keyboard_n(m65_left_crsr) and keyboard_n(m65_x);
+    pl_joy1(4) <= p1_jump_n
+                  and keyboard_n(m65_z)
+				  and keyboard_n(m65_v);
+				  
     pl_joy1(2) <= joy_1_down_n_i and keyboard_n(m65_vert_crsr);
     pl_joy1(3) <= joy_1_up_n_i and keyboard_n(m65_up_crsr);
-    pl_joy1(4) <= joy_1_fire_n_i and keyboard_n(m65_z);
     pl_joy1(6 downto 5) <= "11";
-    pl_joy2(0) <= joy_2_right_n_i;
-    pl_joy2(1) <= joy_2_left_n_i;
-    pl_joy2(2) <= joy_2_down_n_i;
-    pl_joy2(3) <= joy_2_up_n_i;
-    pl_joy2(4) <= joy_2_fire_n_i;
-    pl_joy2(6 downto 5) <= "11";
+
+    -- Upright cabinet: both players use the same configured joystick and keyboard.
+    pl_joy2 <= pl_joy1;
+
+    p1_right_n <= p1_mapped(0) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_right_n_i;
+    p1_left_n <= p1_mapped(2) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_left_n_i;
+    p1_jump_n <= p1_mapped(1) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_fire_n_i;
     pl_cab  <= "11" & keyboard_n(m65_2) & keyboard_n(m65_1);
     pl_coin <= "11" & keyboard_n(m65_5) & keyboard_n(m65_6);
-
    ---------------------------------------------------------------------------
    -- Keyboard interface
    ---------------------------------------------------------------------------

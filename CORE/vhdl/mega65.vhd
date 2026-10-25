@@ -436,6 +436,7 @@ end process;
    ---------------------------------------------------------------------------------------------
 
    -- Due to a discussion on the MEGA65 discord (https://discord.com/channels/719326990221574164/794775503818588200/1039457688020586507)
+   -- Due to a discussion on the MEGA65 discord (https://discord.com/channels/719326990221574164/794775503818588200/1039457688020586507)
    -- we decided to choose a naming convention for the PAL modes that might be more intuitive for the end users than it is
    -- for the programmers: "4:3" means "meant to be run on a 4:3 monitor", "5:4 on a 5:4 monitor".
    -- The technical reality is though, that in our "5:4" mode we are actually doing a 4/3 aspect ratio adjustment
@@ -455,6 +456,7 @@ end process;
    qnice_dvi_o                <= '0';                                         -- 0=HDMI (with sound), 1=DVI (no sound)
    qnice_audio_mute_o         <= '0';                                         -- audio is not muted
    qnice_audio_filter_o       <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO);   -- 0 = raw audio, 1 = use filters from globals.vhd
+   qnice_zoom_crop_o          <= '0';--qnice_osm_control_i(C_MENU_HDMI_ZOOM);       -- 0 = no zoom/crop
    
    -- These two signals are often used as a pair (i.e. both '1'), particularly when
    -- you want to run old analog cathode ray tube monitors or TVs (via SCART)

@@ -18,8 +18,6 @@ use work.video_modes_pkg.all;
 package globals is
 
 
---- menu items
--- HDMI
 constant C_MENU_CRT_EMULATION : natural := 4;
 constant C_MENU_HDMI_16_9_50  : natural := 8;
 constant C_MENU_HDMI_16_9_60  : natural := 9;
@@ -37,29 +35,42 @@ constant C_MENU_VGA_15KHZCS   : natural := 25;
 -- Audio
 constant C_MENU_IMPROVE_AUDIO : natural := 31;
 
--- Arcade controls
-constant C_MENU_SECOND_FIRE   : natural := 35;
-constant C_MENU_POTPOL        : natural := 37;  -- P1 polarity
+-- Arcade controls (OPTM_ITEMS indices; submenu entries retain their indices)
+constant C_MENU_MODE_0        : natural := 36;
+constant C_MENU_MODE_1        : natural := 37;
+
+constant C_MENU_P1LAY_0        : natural := 38;
+constant C_MENU_P1LAY_1        : natural := 39;
+constant C_MENU_P1LAY_2        : natural := 40;
+constant C_MENU_P1LAY_3        : natural := 41;
+constant C_MENU_P1LAY_4        : natural := 42;
+constant C_MENU_P1LAY_5        : natural := 43;
+
+constant C_MENU_P1POL_0        : natural := 44;
+constant C_MENU_P1POL_1        : natural := 45;
+
+
+
 
 -- DIP SW1
-constant C_MENU_SW1_0         : natural := 43;
-constant C_MENU_SW1_1         : natural := 44;
-constant C_MENU_SW1_2         : natural := 45;
-constant C_MENU_SW1_3         : natural := 46;
-constant C_MENU_SW1_4         : natural := 47;
-constant C_MENU_SW1_5         : natural := 48;
-constant C_MENU_SW1_6         : natural := 49;
-constant C_MENU_SW1_7         : natural := 50;
+constant C_MENU_SW1_0          : natural := 51;
+constant C_MENU_SW1_1          : natural := 52;
+constant C_MENU_SW1_2          : natural := 53;
+constant C_MENU_SW1_3          : natural := 54;
+constant C_MENU_SW1_4          : natural := 55;
+constant C_MENU_SW1_5          : natural := 56;
+constant C_MENU_SW1_6          : natural := 57;
+constant C_MENU_SW1_7          : natural := 58;
 
 -- DIP SW2
-constant C_MENU_SW2_0         : natural := 56;
-constant C_MENU_SW2_1         : natural := 57;
-constant C_MENU_SW2_2         : natural := 58;
-constant C_MENU_SW2_3         : natural := 59;
-constant C_MENU_SW2_4         : natural := 60;
-constant C_MENU_SW2_5         : natural := 61;
-constant C_MENU_SW2_6         : natural := 62;
-constant C_MENU_SW2_7         : natural := 63;
+constant C_MENU_SW2_0          : natural := 64;
+constant C_MENU_SW2_1          : natural := 65;
+constant C_MENU_SW2_2          : natural := 66;
+constant C_MENU_SW2_3          : natural := 67;
+constant C_MENU_SW2_4          : natural := 68;
+constant C_MENU_SW2_5          : natural := 69;
+constant C_MENU_SW2_6          : natural := 70;
+constant C_MENU_SW2_7          : natural := 71;
 
 
 ----------------------------------------------------------------------------------------------------------
