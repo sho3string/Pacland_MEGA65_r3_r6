@@ -12,8 +12,6 @@ module jtshouse_vtimer(
 
 `include "vtimer.vh"
 
-wire [8:0] vdump_raw;
-
 jtframe_vtimer #(
     .HCNT_START ( 9'h000    ),
     .HCNT_END   ( 9'h17F    ),
@@ -31,8 +29,7 @@ jtframe_vtimer #(
 ) u_vtimer(
     .clk        ( clk       ),
     .pxl_cen    ( pxl_cen   ),
-    //.vdump      ( vdump     ),
-    .vdump      ( vdump_raw ),
+    .vdump      ( vdump     ),
     .vrender    ( vrender   ),
     .vrender1   ( vrender1  ),
     .H          ( hdump     ),
@@ -43,7 +40,5 @@ jtframe_vtimer #(
     .HS         ( hs        ), // 16kHz
     .VS         ( vs        )
 );
-
-assign vdump = vdump_raw - 9'd8;
 
 endmodule
