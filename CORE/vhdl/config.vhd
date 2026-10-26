@@ -326,11 +326,11 @@ constant OPTM_S_CRTROM     : string := "<Load>";
 constant OPTM_S_SAVING     : string := "<Saving>";
 
 -- Size of menu and menu items
-constant OPTM_SIZE         : natural := 76;
+constant OPTM_SIZE         : natural := 82;
 
 -- Net size of the Options menu on the screen in characters
 constant OPTM_DX           : natural := 23;
-constant OPTM_DY           : natural := 20;
+constant OPTM_DY           : natural := 19;
 
 constant OPTM_ITEMS        : string :=
            " Pacland - Namco\n"         &  --  0
@@ -373,55 +373,58 @@ constant OPTM_ITEMS        : string :=
            " Audio improvements\n"      &  -- 31
 
            "\n"                         &  -- 32
-           " Control Settings\n"        &  -- 33
-           " Control Settings\n"        &  -- 34
+           " Misc Settings\n"         &  -- 33
+           "\n"                         &  -- 34
+           " Control Settings\n"        &  -- 35
+           " Control Settings\n"        &  -- 36
+           "\n"                         &  -- 37
+           " Control Mode: 3-Button\n" &  -- 38
+           " Control Mode: Joystick\n" &  -- 39
+           " Control Mode: Keyboard\n" &  -- 40
+           "\n"                         &  -- 41
+           " 3-Button Options\n"       &  -- 42
+           "\n"                         &  -- 43
+           " Left Jump Right\n"        &  -- 44
+           " Left Right Jump\n"        &  -- 45
+           " Jump Left Right\n"        &  -- 46
+           " Jump Right Left\n"        &  -- 47
+           " Right Left Jump\n"        &  -- 48
+           " Right Jump Left\n"        &  -- 49
+           " Active Low\n"             &  -- 50
+           " Active High\n"            &  -- 51
+           "\n"                         &  -- 52
+           " Back to main menu\n"      &  -- 53
 
-            "\n"                         &  -- 35
-           " Control Mode: 3-Button\n" &   -- 36
-           " Control Mode: Joystick\n" &   -- 37
-           " P1: Left Jump Right\n" &      -- 38
-           " P1: Left Right Jump\n" &      -- 39
-           " P1: Jump Left Right\n" &      -- 40
-           " P1: Jump Right Left\n" &      -- 41
-           " P1: Right Left Jump\n" &      -- 42
-           " P1: Right Jump Left\n" &      -- 43
-           " P1 POT: Active Low\n" &       -- 44
-           " P1 POT: Active High\n" &      -- 45
+           " DIP SW1\n"                 &  -- 54
+           " SW1 Settings\n"            &  -- 55
+           "\n"                         &  -- 56
+           " SW1-1 Service\n"           &  -- 57
+           " SW1-2 Lives\n"             &  -- 58
+           " SW1-3 Lives\n"             &  -- 59
+           " SW1-4 Coin A\n"            &  -- 60
+           " SW1-5 Coin A\n"            &  -- 61
+           " SW1-6 Demo Sounds\n"       &  -- 62
+           " SW1-7 Coin B\n"            &  -- 63
+           " SW1-8 Coin B\n"            &  -- 64
+           "\n"                         &  -- 65
+           " Back to main menu\n"       &  -- 66
 
+           " DIP SW2\n"                 &  -- 67
+           " SW2 Settings\n"            &  -- 68
+           "\n"                         &  -- 69
+           " SW2-1 Bonus Life\n"        &  -- 70
+           " SW2-2 Bonus Life\n"        &  -- 71
+           " SW2-3 Bonus Life\n"        &  -- 72
+           " SW2-4 Difficulty\n"        &  -- 73
+           " SW2-5 Difficulty\n"        &  -- 74
+           " SW2-6 Round select\n"      &  -- 75
+           " SW2-7 Freeze\n"            &  -- 76
+           " SW2-8 Trip Select\n"       &  -- 77
+           "\n"                         &  -- 78
+           " Back to main menu\n"       &  -- 79
 
-            "\n"                         &  -- 46
-           " Back to main menu\n"       &  -- 47
-
-           " DIP SW1\n"                 &  -- 48
-           " SW1 Settings\n"            &  -- 49
-           "\n"                         &  -- 50
-           " SW1-1 Service\n"           &  -- 51
-           " SW1-2 Lives\n"             &  -- 52
-           " SW1-3 Lives\n"             &  -- 53
-           " SW1-4 Coin A\n"            &  -- 54
-           " SW1-5 Coin A\n"            &  -- 55
-           " SW1-6 Demo Sounds\n"       &  -- 56
-           " SW1-7 Coin B\n"            &  -- 57
-           " SW1-8 Coin B\n"            &  -- 58
-           "\n"                         &  -- 59
-           " Back to main menu\n"       &  -- 60
-
-           " DIP SW2\n"                 &  -- 61
-           " SW2 Settings\n"            &  -- 62
-           "\n"                         &  -- 63
-           " SW2-1 Bonus Life\n"        &  -- 64
-           " SW2-2 Bonus Life\n"        &  -- 65
-           " SW2-3 Bonus Life\n"        &  -- 66
-           " SW2-4 Difficulty\n"        &  -- 67
-           " SW2-5 Difficulty\n"        &  -- 68
-           " SW2-6 Round select\n"      &  -- 69
-           " SW2-7 Freeze\n"            &  -- 70
-           " SW2-8 Trip Select\n"       &  -- 71
-           "\n"                         &  -- 72
-           " Back to main menu\n"       &  -- 73
-
-           "\n"                         &  -- 74
-           " Close Menu\n";                -- 75
+           "\n"                         &  -- 80
+           " Close Menu\n";                -- 81
                 
 
 --------------------------------------------------------------------------------------------------------------------
@@ -514,63 +517,66 @@ constant OPTM_GROUPS : OPTM_GTYPE := (
 
                                OPTM_G_Audio + OPTM_G_SINGLESEL,                     -- 31 Audio improvements
 
-                               -- Controls
+                               -- Controls and DIP switch settings
                                OPTM_G_LINE,                                         -- 32
-                               OPTM_G_SUBMENU,                                      -- 33 Control Settings
-                               OPTM_G_HEADLINE,                                     -- 34 Control Settings
-
-                               -- Pac-Land controls
-                                OPTM_G_LINE,                                         -- 35
-                               OPTM_G_CTRL_MODE + OPTM_G_STDSEL, -- 36
-                               OPTM_G_CTRL_MODE, -- 37
-                               OPTM_G_P1_LAYOUT + OPTM_G_STDSEL, -- 38
-                               OPTM_G_P1_LAYOUT, -- 39
-                               OPTM_G_P1_LAYOUT, -- 40
-                               OPTM_G_P1_LAYOUT, -- 41
-                               OPTM_G_P1_LAYOUT, -- 42
-                               OPTM_G_P1_LAYOUT, -- 43
-                               OPTM_G_P1_POL + OPTM_G_STDSEL, -- 44
-                               OPTM_G_P1_POL, -- 45
-
-                                OPTM_G_LINE,                                         -- 46
-                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 47 Back to main menu
+                               OPTM_G_TEXT + OPTM_G_HEADLINE,                       -- 33 Misc Settings
+                               OPTM_G_LINE,                                         -- 34
+                               OPTM_G_SUBMENU,                                      -- 35 Control Settings
+                               OPTM_G_HEADLINE,                                     -- 36 Control Settings
+                               OPTM_G_LINE,                                         -- 37
+                               OPTM_G_CTRL_MODE + OPTM_G_STDSEL,                    -- 38 3-Button
+                               OPTM_G_CTRL_MODE,                                    -- 39 Joystick
+                               OPTM_G_CTRL_MODE,                                    -- 40 Keyboard
+                               OPTM_G_LINE,                                         -- 41
+                               OPTM_G_TEXT + OPTM_G_HEADLINE,                       -- 42 3-Button Options
+                               OPTM_G_LINE,                                         -- 43
+                               OPTM_G_P1_LAYOUT + OPTM_G_STDSEL,                    -- 44
+                               OPTM_G_P1_LAYOUT,                                    -- 45
+                               OPTM_G_P1_LAYOUT,                                    -- 46
+                               OPTM_G_P1_LAYOUT,                                    -- 47
+                               OPTM_G_P1_LAYOUT,                                    -- 48
+                               OPTM_G_P1_LAYOUT,                                    -- 49
+                               OPTM_G_P1_POL + OPTM_G_STDSEL,                       -- 50
+                               OPTM_G_P1_POL,                                       -- 51
+                               OPTM_G_LINE,                                         -- 52
+                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 53 Back to main menu
 
                                -- DIP SW1 submenu
-                               OPTM_G_SUBMENU,                                      -- 48 DIP SW1
-                               OPTM_G_HEADLINE,                                     -- 49 SW1 Settings
-                               OPTM_G_LINE,                                         -- 50
+                               OPTM_G_SUBMENU,                                      -- 54 DIP SW1
+                               OPTM_G_HEADLINE,                                     -- 55 SW1 Settings
+                               OPTM_G_LINE,                                         -- 56
 
-                               OPTM_G_SW1_0 + OPTM_G_SINGLESEL,                     -- 51 SW1-1
-                               OPTM_G_SW1_1 + OPTM_G_SINGLESEL,                     -- 52 SW1-2
-                               OPTM_G_SW1_2 + OPTM_G_SINGLESEL,                     -- 53 SW1-3
-                               OPTM_G_SW1_3 + OPTM_G_SINGLESEL,                     -- 54 SW1-4
-                               OPTM_G_SW1_4 + OPTM_G_SINGLESEL,                     -- 55 SW1-5
-                               OPTM_G_SW1_5 + OPTM_G_SINGLESEL,                     -- 56 SW1-6
-                               OPTM_G_SW1_6 + OPTM_G_SINGLESEL,                     -- 57 SW1-7
-                               OPTM_G_SW1_7 + OPTM_G_SINGLESEL,                     -- 58 SW1-8
+                               OPTM_G_SW1_0 + OPTM_G_SINGLESEL,                     -- 57 SW1-1
+                               OPTM_G_SW1_1 + OPTM_G_SINGLESEL,                     -- 58 SW1-2
+                               OPTM_G_SW1_2 + OPTM_G_SINGLESEL,                     -- 59 SW1-3
+                               OPTM_G_SW1_3 + OPTM_G_SINGLESEL,                     -- 60 SW1-4
+                               OPTM_G_SW1_4 + OPTM_G_SINGLESEL,                     -- 61 SW1-5
+                               OPTM_G_SW1_5 + OPTM_G_SINGLESEL,                     -- 62 SW1-6
+                               OPTM_G_SW1_6 + OPTM_G_SINGLESEL,                     -- 63 SW1-7
+                               OPTM_G_SW1_7 + OPTM_G_SINGLESEL,                     -- 64 SW1-8
 
-                               OPTM_G_LINE,                                         -- 59
-                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 60 Back to main menu
+                               OPTM_G_LINE,                                         -- 65
+                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 66 Back to main menu
 
                                -- DIP SW2 submenu
-                               OPTM_G_SUBMENU,                                      -- 61 DIP SW2
-                               OPTM_G_HEADLINE,                                     -- 62 SW2 Settings
-                               OPTM_G_LINE,                                         -- 63
+                               OPTM_G_SUBMENU,                                      -- 67 DIP SW2
+                               OPTM_G_HEADLINE,                                     -- 68 SW2 Settings
+                               OPTM_G_LINE,                                         -- 69
 
-                               OPTM_G_SW2_0 + OPTM_G_SINGLESEL,                     -- 64 SW2-1
-                               OPTM_G_SW2_1 + OPTM_G_SINGLESEL,                     -- 65 SW2-2
-                               OPTM_G_SW2_2 + OPTM_G_SINGLESEL,                     -- 66 SW2-3
-                               OPTM_G_SW2_3 + OPTM_G_SINGLESEL,                     -- 67 SW2-4
-                               OPTM_G_SW2_4 + OPTM_G_SINGLESEL,                     -- 68 SW2-5
-                               OPTM_G_SW2_5 + OPTM_G_SINGLESEL,                     -- 69 SW2-6
-                               OPTM_G_SW2_6 + OPTM_G_SINGLESEL,                     -- 70 SW2-7
-                               OPTM_G_SW2_7 + OPTM_G_SINGLESEL,                     -- 71 SW2-8
+                               OPTM_G_SW2_0 + OPTM_G_SINGLESEL,                     -- 70 SW2-1
+                               OPTM_G_SW2_1 + OPTM_G_SINGLESEL,                     -- 71 SW2-2
+                               OPTM_G_SW2_2 + OPTM_G_SINGLESEL,                     -- 72 SW2-3
+                               OPTM_G_SW2_3 + OPTM_G_SINGLESEL,                     -- 73 SW2-4
+                               OPTM_G_SW2_4 + OPTM_G_SINGLESEL,                     -- 74 SW2-5
+                               OPTM_G_SW2_5 + OPTM_G_SINGLESEL,                     -- 75 SW2-6
+                               OPTM_G_SW2_6 + OPTM_G_SINGLESEL,                     -- 76 SW2-7
+                               OPTM_G_SW2_7 + OPTM_G_SINGLESEL,                     -- 77 SW2-8
 
-                               OPTM_G_LINE,                                         -- 72
-                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 73 Back to main menu
+                               OPTM_G_LINE,                                         -- 78
+                               OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 79 Back to main menu
 
-                               OPTM_G_LINE,                                         -- 74
-                               OPTM_G_CLOSE                                         -- 75 Close Menu
+                               OPTM_G_LINE,                                         -- 80
+                               OPTM_G_CLOSE                                         -- 81 Close Menu
 );
 
 

@@ -91,7 +91,7 @@ architecture synthesis of main is
    constant ROM_OBJPAL_START   : natural := 16#38000#;
    constant ROM_END            : natural := 16#38400#;
    
-   -- Offer some keyboard controls in addition to Joy 1 Controls
+   -- Keyboard inputs are used for movement only in Keyboard mode
    constant m65_1          : integer := 56; --Player 1 Start
    constant m65_2          : integer := 59; --Player 2 Start
    constant m65_5          : integer := 16; --Insert coin 1
@@ -276,9 +276,6 @@ architecture synthesis of main is
                 pxl_cen <= '1';
             end if;
     
-            --if pxl_div(0) = '1' then
-            --    pxl2_cen <= '1';
-            --end if;
             if pxl_div(1 downto 0) = "11" then
                 pxl2_cen <= '1';
             end if;
@@ -371,24 +368,39 @@ architecture synthesis of main is
     end process;
 
 
-    pl_joy1(0) <= p1_right_n
-                  and keyboard_n(m65_horz_crsr) and keyboard_n(m65_c);
-    pl_joy1(1) <= p1_left_n
-                  and keyboard_n(m65_left_crsr) and keyboard_n(m65_x);
-    pl_joy1(4) <= p1_jump_n
-                  and keyboard_n(m65_z)
-				  and keyboard_n(m65_v);
-				  
-    pl_joy1(2) <= joy_1_down_n_i and keyboard_n(m65_vert_crsr);
-    pl_joy1(3) <= joy_1_up_n_i and keyboard_n(m65_up_crsr);
-    pl_joy1(6 downto 5) <= "11";
+    -- Modes are exclusive: 3-button and joystick ignore keyboard movement;
+    -- keyboard mode ignores all physical joystick and POT inputs.
+    process(all)
+    begin
+       pl_joy1 <= (others => '1');
 
-    -- Upright cabinet: both players use the same configured joystick and keyboard.
+       if osm_control_i(C_MENU_MODE_2) = '1' then
+          -- Keyboard: cursor keys or X/C for movement; Z/V to jump.
+          pl_joy1(0) <= keyboard_n(m65_horz_crsr) and keyboard_n(m65_c);
+          pl_joy1(1) <= keyboard_n(m65_left_crsr) and keyboard_n(m65_x);
+          pl_joy1(2) <= keyboard_n(m65_vert_crsr);
+          pl_joy1(3) <= keyboard_n(m65_up_crsr);
+          pl_joy1(4) <= keyboard_n(m65_z) and keyboard_n(m65_v);
+       elsif osm_control_i(C_MENU_MODE_1) = '1' then
+          -- Joystick: left/right movement, Fire to jump.
+          pl_joy1(0) <= joy_1_right_n_i;
+          pl_joy1(1) <= joy_1_left_n_i;
+          pl_joy1(2) <= joy_1_down_n_i;
+          pl_joy1(3) <= joy_1_up_n_i;
+          pl_joy1(4) <= joy_1_fire_n_i;
+       else
+          -- 3-button: POTX/Fire/POTY mapped to Left/Jump/Right.
+          pl_joy1(0) <= p1_mapped(0);
+          pl_joy1(1) <= p1_mapped(2);
+          pl_joy1(2) <= joy_1_down_n_i;
+          pl_joy1(3) <= joy_1_up_n_i;
+          pl_joy1(4) <= p1_mapped(1);
+       end if;
+    end process;
+
+    -- Upright cabinet: both players share the selected control scheme.
     pl_joy2 <= pl_joy1;
 
-    p1_right_n <= p1_mapped(0) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_right_n_i;
-    p1_left_n <= p1_mapped(2) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_left_n_i;
-    p1_jump_n <= p1_mapped(1) when osm_control_i(C_MENU_MODE_0) = '1' else joy_1_fire_n_i;
     pl_cab  <= "11" & keyboard_n(m65_2) & keyboard_n(m65_1);
     pl_coin <= "11" & keyboard_n(m65_5) & keyboard_n(m65_6);
    ---------------------------------------------------------------------------

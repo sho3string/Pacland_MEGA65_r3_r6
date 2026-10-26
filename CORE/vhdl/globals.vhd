@@ -36,41 +36,42 @@ constant C_MENU_VGA_15KHZCS   : natural := 25;
 constant C_MENU_IMPROVE_AUDIO : natural := 31;
 
 -- Arcade controls (OPTM_ITEMS indices; submenu entries retain their indices)
-constant C_MENU_MODE_0        : natural := 36;
-constant C_MENU_MODE_1        : natural := 37;
+constant C_MENU_MODE_0        : natural := 38;
+constant C_MENU_MODE_1        : natural := 39;
+constant C_MENU_MODE_2        : natural := 40;
 
-constant C_MENU_P1LAY_0        : natural := 38;
-constant C_MENU_P1LAY_1        : natural := 39;
-constant C_MENU_P1LAY_2        : natural := 40;
-constant C_MENU_P1LAY_3        : natural := 41;
-constant C_MENU_P1LAY_4        : natural := 42;
-constant C_MENU_P1LAY_5        : natural := 43;
+constant C_MENU_P1LAY_0        : natural := 44;
+constant C_MENU_P1LAY_1        : natural := 45;
+constant C_MENU_P1LAY_2        : natural := 46;
+constant C_MENU_P1LAY_3        : natural := 47;
+constant C_MENU_P1LAY_4        : natural := 48;
+constant C_MENU_P1LAY_5        : natural := 49;
 
-constant C_MENU_P1POL_0        : natural := 44;
-constant C_MENU_P1POL_1        : natural := 45;
+constant C_MENU_P1POL_0        : natural := 50;
+constant C_MENU_P1POL_1        : natural := 51;
 
 
 
 
 -- DIP SW1
-constant C_MENU_SW1_0          : natural := 51;
-constant C_MENU_SW1_1          : natural := 52;
-constant C_MENU_SW1_2          : natural := 53;
-constant C_MENU_SW1_3          : natural := 54;
-constant C_MENU_SW1_4          : natural := 55;
-constant C_MENU_SW1_5          : natural := 56;
-constant C_MENU_SW1_6          : natural := 57;
-constant C_MENU_SW1_7          : natural := 58;
+constant C_MENU_SW1_0          : natural := 57;
+constant C_MENU_SW1_1          : natural := 58;
+constant C_MENU_SW1_2          : natural := 59;
+constant C_MENU_SW1_3          : natural := 60;
+constant C_MENU_SW1_4          : natural := 61;
+constant C_MENU_SW1_5          : natural := 62;
+constant C_MENU_SW1_6          : natural := 63;
+constant C_MENU_SW1_7          : natural := 64;
 
 -- DIP SW2
-constant C_MENU_SW2_0          : natural := 64;
-constant C_MENU_SW2_1          : natural := 65;
-constant C_MENU_SW2_2          : natural := 66;
-constant C_MENU_SW2_3          : natural := 67;
-constant C_MENU_SW2_4          : natural := 68;
-constant C_MENU_SW2_5          : natural := 69;
-constant C_MENU_SW2_6          : natural := 70;
-constant C_MENU_SW2_7          : natural := 71;
+constant C_MENU_SW2_0          : natural := 70;
+constant C_MENU_SW2_1          : natural := 71;
+constant C_MENU_SW2_2          : natural := 72;
+constant C_MENU_SW2_3          : natural := 73;
+constant C_MENU_SW2_4          : natural := 74;
+constant C_MENU_SW2_5          : natural := 75;
+constant C_MENU_SW2_6          : natural := 76;
+constant C_MENU_SW2_7          : natural := 77;
 
 
 ----------------------------------------------------------------------------------------------------------
