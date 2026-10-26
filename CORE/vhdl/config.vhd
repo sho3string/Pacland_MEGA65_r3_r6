@@ -524,8 +524,8 @@ constant OPTM_GROUPS : OPTM_GTYPE := (
                                OPTM_G_SUBMENU,                                      -- 35 Control Settings
                                OPTM_G_HEADLINE,                                     -- 36 Control Settings
                                OPTM_G_LINE,                                         -- 37
-                               OPTM_G_CTRL_MODE + OPTM_G_STDSEL,                    -- 38 3-Button
-                               OPTM_G_CTRL_MODE,                                    -- 39 Joystick
+                               OPTM_G_CTRL_MODE,                                    -- 38 3-Button
+                               OPTM_G_CTRL_MODE + OPTM_G_STDSEL,                    -- 39 Joystick
                                OPTM_G_CTRL_MODE,                                    -- 40 Keyboard
                                OPTM_G_LINE,                                         -- 41
                                OPTM_G_TEXT + OPTM_G_HEADLINE,                       -- 42 3-Button Options
