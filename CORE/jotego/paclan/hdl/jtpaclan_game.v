@@ -174,7 +174,6 @@ jtpaclan_main u_main(
 
     .cpu_dout   ( cpu_dout  ),
     .rnw        ( cpu_rnw   ),
-        
     // ROM
     .rom_cs     ( main_cs   ),
     .rom_ok     ( main_ok   ),
